@@ -52,7 +52,7 @@
             <router-link to="/categorias"
               class="block text-left px-4 py-2 text-sm font-medium text-gray-700 hover:bg-orange-100 transition-all duration-200"
               @click="closeCategories">
-               Ver todas las categorías
+               Ver categorías
             </router-link>
             <div class="grid gap-1 max-h-[50vh] overflow-y-auto px-3">
               <router-link v-for="category in categories" :key="category.id" :to="`/categoria/${category.slug}`"
