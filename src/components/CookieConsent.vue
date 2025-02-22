@@ -29,30 +29,68 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
-const isAccepted = ref(localStorage.getItem('cookiesAccepted') === 'true');
+// Revisamos si el valor está guardado en localStorage, de lo contrario, lo inicializamos como null
+const cookiesAccepted = localStorage.getItem('cookiesAccepted');
+const isAccepted = ref(cookiesAccepted ? cookiesAccepted === 'true' : null);
 
+// Lógica para aceptar cookies con notificaciones
 const acceptWithNotifications = () => {
   localStorage.setItem('cookiesAccepted', 'true');
   isAccepted.value = true;
+  activateAnalytics();  // Activar cookies de marketing, por ejemplo
 };
 
+// Lógica para aceptar solo las cookies esenciales
 const acceptBasic = () => {
   localStorage.setItem('cookiesAccepted', 'true');
   isAccepted.value = true;
+  deactivateAnalytics();  // No cargar cookies de marketing
 };
 
+// Lógica para rechazar las cookies (se establece en 'false' y puedes eliminar cookies no esenciales si es necesario)
 const rejectCookies = () => {
   localStorage.setItem('cookiesAccepted', 'false');
   isAccepted.value = true;
+  deleteNonEssentialCookies();  // Eliminar cookies de marketing y seguimiento
+};
+
+// Eliminar cookies no esenciales (como las de seguimiento)
+const deleteNonEssentialCookies = () => {
+  document.cookie = "ga-cookie-name=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  // Aquí puedes añadir más cookies para eliminar
+};
+
+// Activar cookies de marketing (por ejemplo, Google Analytics)
+const activateAnalytics = () => {
+  const script = document.createElement('script');
+  script.src = "https://www.googletagmanager.com/gtag/js?id=UA-XXXXX-Y"; // Reemplaza con tu ID de Analytics
+  script.async = true;
+  document.head.appendChild(script);
+
+  script.onload = () => {
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'UA-XXXXX-Y'); // Reemplaza con tu ID de Analytics
+  };
+};
+
+// Desactivar cookies de marketing (si el usuario las rechaza)
+const deactivateAnalytics = () => {
+  window['ga-disable-UA-XXXXX-Y'] = true; // Reemplaza con tu ID de Analytics
 };
 
 onMounted(() => {
-  // Puedes agregar lógica extra aquí si es necesario
+  // Si el usuario rechazó las cookies, podemos borrar las cookies no esenciales
+  if (isAccepted.value === false) {
+    deleteNonEssentialCookies();
+  }
 });
 </script>
 
 <style scoped>
 .cookie-consent {
-  /* Puedes personalizar los estilos aquí */
+  /* Estilos personalizados para el banner de cookies */
 }
 </style>
