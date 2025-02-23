@@ -12,16 +12,16 @@
   <!-- Mejoras en carga de fuentes -->
   <link rel="preconnect" href="https://fonts.googleapis.com" importance="high">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin importance="high">
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap">
 
-  <!-- Preload de estilos críticos -->
-  <link rel="preload" as="style" href="/src/assets/styles.css">
+  <!-- Preload de estilos críticos (Tailwind CSS) -->
+  <link rel="preload" href="/src/assets/styles.css" as="style">
 
-  <!-- Carga diferida de estilos secundarios -->
-  <link rel="stylesheet" href="/src/assets/styles.css">  <!-- Asegúrate de que esta ruta exista en tu proyecto -->
+  <!-- Carga diferida de estilos secundarios (Tailwind) -->
+  <link rel="stylesheet" href="/src/assets/styles.css" media="print" onload="this.onload=null;this.media='all'">
 
 </head>
-<body>
+<body class="bg-gray-100">
+
   <div id="app"></div>
 
   <!-- Carga optimizada de Vue -->
@@ -29,4 +29,3 @@
 
 </body>
 </html>
-
