@@ -6,7 +6,10 @@
       <aside class="hidden md:block w-1/4">
         <div class="border p-4 rounded-md shadow-md bg-white">
           <!-- ✅ Enlace de la categoría actual -->
-          <router-link :to="`/categoria/${categorySlug}`" class="text-orange-500 font-semibold hover:underline block mb-4">
+          <router-link
+            :to="`/categoria/${categorySlug}`"
+            class="text-orange-500 font-semibold hover:underline block mb-4"
+          >
             {{ categoryTitle }}
           </router-link>
 
@@ -14,12 +17,12 @@
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Filtrar por Precio</h3>
           <div>
             <label class="block text-gray-700 font-medium">Precio Máximo</label>
-            <input 
-              type="range" 
-              v-model="priceFilter" 
-              min="0" 
-              max="5000" 
-              step="50" 
+            <input
+              type="range"
+              v-model="priceFilter"
+              min="0"
+              max="5000"
+              step="50"
               @input="applyFilters"
               class="w-full"
             />
@@ -27,7 +30,7 @@
           </div>
 
           <!-- 🔄 Botón para limpiar el filtro -->
-          <button 
+          <button
             @click="clearFilters"
             class="w-full bg-gray-400 text-white font-semibold py-2 mt-4 rounded-md hover:bg-gray-500 transition"
           >
@@ -38,17 +41,23 @@
 
       <!-- 🛍️ LISTADO DE PRODUCTOS -->
       <div class="w-full md:w-3/4">
-        <div v-if="filteredProducts.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          <div 
-            v-for="product in filteredProducts" 
-            :key="product.id" 
+        <div
+          v-if="filteredProducts.length > 0"
+          class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+        >
+          <div
+            v-for="product in filteredProducts"
+            :key="product.id"
             class="relative border rounded-lg shadow-md overflow-hidden hover:shadow-lg transition h-[480px] flex flex-col group"
           >
-            <router-link :to="`/producto/${product.slug}`" class="block h-[45%] flex justify-center items-center p-3">
-              <img 
-                :src="product.image" 
-                :alt="product.name" 
-                class="max-h-full max-w-full object-contain transition-transform duration-200" 
+            <router-link
+              :to="`/producto/${product.slug}`"
+              class="block h-[45%] flex justify-center items-center p-3"
+            >
+              <img
+                :src="product.image"
+                :alt="product.name"
+                class="max-h-full max-w-full object-contain transition-transform duration-200"
                 loading="lazy"
               />
             </router-link>
@@ -61,13 +70,13 @@
 
             <div class="absolute bottom-3 left-0 w-full flex flex-col items-center">
               <p class="text-orange-600 font-bold text-lg">S/ {{ product.price }}</p>
-              
-              <!-- 🛒 Botón Agregar al Carrito -->
-              <button 
+
+              <!-- 🛒 Botón Agregar al Carrito con efecto sutil -->
+              <button
                 @click="addToCart(product)"
-                class="opacity-0 group-hover:opacity-100 transition-opacity bg-orange-500 text-white font-semibold py-2 px-4 text-sm w-3/4 text-center rounded-full mt-2 truncate"
+                class="md:opacity-0 group-hover:opacity-100 opacity-100 bg-orange-500 text-white font-semibold py-2 px-4 text-sm w-3/4 text-center rounded-full mt-2 truncate transition-all duration-200 hover:bg-orange-600 hover:scale-105 active:scale-95"
               >
-                 Agregar al Carrito
+                Agregar al Carrito
               </button>
             </div>
           </div>
@@ -78,11 +87,10 @@
           No hay productos disponibles con estos filtros.
         </div>
       </div>
-    </div> <!-- 🔹 Cierra el contenedor flexible -->
+    </div>
+    <!-- 🔹 Cierra el contenedor flexible -->
   </div>
 </template>
-
-
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
@@ -95,7 +103,7 @@ const store = useStore();
 const cartStore = useCartStore();
 
 const categorySlug = computed(() => route.params.slug);
-const categoryTitle = ref("");
+const categoryTitle = ref('');
 const allProducts = ref([]);
 const filteredProducts = ref([]);
 const priceFilter = ref(5000); // Precio máximo por defecto
@@ -109,7 +117,7 @@ const updateCategoryTitle = async () => {
     categories = store.categories;
   }
 
-  const category = categories.find(cat => cat.slug === categorySlug.value);
+  const category = categories.find((cat) => cat.slug === categorySlug.value);
   if (category) {
     categoryTitle.value = category.name;
     sessionStorage.setItem(`category_${categorySlug.value}`, category.name);
@@ -133,7 +141,7 @@ const loadProducts = async () => {
 
 // ✅ Aplicar filtros de precio
 const applyFilters = () => {
-  filteredProducts.value = allProducts.value.filter(product => {
+  filteredProducts.value = allProducts.value.filter((product) => {
     return product.price <= Number(priceFilter.value);
   });
 };
