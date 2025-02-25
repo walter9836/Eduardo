@@ -1,5 +1,8 @@
 <template>
   <div class="container mx-auto px-4 py-6">
+    <!-- Nombre de la categoría seleccionada como h1 -->
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ categoryTitle }}</h1>
+
     <!-- 📌 FILTROS + LISTA DE PRODUCTOS -->
     <div class="flex gap-6">
       <!-- 📌 FILTRO: Enlace de Categoría + Precio -->
@@ -71,12 +74,13 @@
             <div class="absolute bottom-3 left-0 w-full flex flex-col items-center">
               <p class="text-orange-600 font-bold text-lg">S/ {{ product.price }}</p>
 
-              <!-- 🛒 Botón Agregar al Carrito con efecto sutil -->
+              <!-- Botón Agregar al Carrito con texto adaptado para móvil -->
               <button
                 @click="addToCart(product)"
-                class="md:opacity-0 group-hover:opacity-100 opacity-100 bg-orange-500 text-white font-semibold py-2 px-4 text-sm w-3/4 text-center rounded-full mt-2 truncate transition-all duration-200 hover:bg-orange-600 hover:scale-105 active:scale-95"
+                class="md:opacity-0 group-hover:opacity-100 opacity-100 bg-orange-500 text-white font-semibold py-2 px-4 text-sm w-3/4 sm:w-11/12 text-center rounded-full mt-2 transition-all duration-200 hover:bg-orange-600 hover:scale-105 active:scale-95"
               >
-                Agregar al Carrito
+                <span class="block sm:hidden">Agregar</span>
+                <span class="hidden sm:block">Agregar al Carrito</span>
               </button>
             </div>
           </div>
@@ -108,7 +112,7 @@ const allProducts = ref([]);
 const filteredProducts = ref([]);
 const priceFilter = ref(5000); // Precio máximo por defecto
 
-// ✅ Función para actualizar el nombre de la categoría
+// Función para actualizar el nombre de la categoría
 const updateCategoryTitle = async () => {
   let categories = store.categories;
 
@@ -124,7 +128,7 @@ const updateCategoryTitle = async () => {
   }
 };
 
-// ✅ Función para cargar productos de la categoría seleccionada
+// Función para cargar productos de la categoría seleccionada
 const loadProducts = async () => {
   updateCategoryTitle();
 
@@ -139,30 +143,30 @@ const loadProducts = async () => {
   applyFilters();
 };
 
-// ✅ Aplicar filtros de precio
+// Aplicar filtros de precio
 const applyFilters = () => {
   filteredProducts.value = allProducts.value.filter((product) => {
     return product.price <= Number(priceFilter.value);
   });
 };
 
-// 🔄 Limpiar filtros
+// Limpiar filtros
 const clearFilters = () => {
   priceFilter.value = 5000;
   applyFilters();
 };
 
-// 🛒 Agregar productos al carrito
+// Agregar productos al carrito
 const addToCart = (product) => {
   cartStore.addItem(product);
 };
 
-// ✅ Observar cambios en la categoría y actualizar los datos
+// Observar cambios en la categoría y actualizar los datos
 watch(categorySlug, async () => {
   await updateCategoryTitle();
   await loadProducts();
 });
 
-// 🏗 Ejecutar al montar el componente
+// Ejecutar al montar el componente
 onMounted(loadProducts);
 </script>

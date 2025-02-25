@@ -115,41 +115,41 @@
   </header>
 
   <!-- 🔍 Barra de búsqueda en móviles (Debajo del header) -->
-  <div class="w-full px-4 md:px-6 mt-2 md:hidden flex justify-center">
-    <div class="relative w-full max-w-lg">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Buscar productos..."
-        class="w-full px-5 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm shadow-md"
-        @input="filterResults"
-        @keyup.enter="performSearch"
-      />
-      <button
-        @click="performSearch"
-        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-orange-500 transition"
-      >
-        <img src="/lupa.svg" alt="Buscar" class="w-5 h-5" />
-      </button>
+  <div class="w-full px-5 md:px-6 h-15 md:hidden flex justify-center items-center">
+  <div class="relative w-full max-w-xs">
+    <input
+      v-model="searchQuery"
+      type="text"
+      placeholder="Buscar productos..."
+      class="w-full px-6 py-2 border-2 border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm shadow-sm"
+      @input="filterResults"
+      @keyup.enter="performSearch"
+    />
+    <button
+      @click="performSearch"
+      class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-orange-500 transition"
+    >
+      <img src="/lupa.svg" alt="Buscar" class="w-5 h-5" />
+    </button>
 
-      <!-- 🔎 Resultados en Vivo -->
-      <div
-        v-if="searchResults.length > 0"
-        class="absolute top-full left-0 w-full bg-white border border-gray-200 shadow-lg rounded-md z-50 mt-1 max-h-64 overflow-y-auto"
-      >
-        <ul class="py-2">
-          <li
-            v-for="product in searchResults"
-            :key="product.id"
-            class="px-4 py-2 hover:bg-orange-100 cursor-pointer transition"
-            @click="goToProduct(product.slug)"
-          >
-            {{ product.name }}
-          </li>
-        </ul>
-      </div>
+    <!-- 🔎 Resultados en Vivo -->
+    <div
+      v-if="searchResults.length > 0"
+      class="absolute top-full left-0 w-full bg-white border border-gray-200 shadow-lg rounded-md z-50 mt-1 max-h-64 overflow-y-auto"
+    >
+      <ul class="py-2">
+        <li
+          v-for="product in searchResults"
+          :key="product.id"
+          class="px-4 py-2 hover:bg-orange-100 cursor-pointer transition"
+          @click="goToProduct(product.slug)"
+        >
+          {{ product.name }}
+        </li>
+      </ul>
     </div>
   </div>
+</div>
 </template>
 
 <script setup>
