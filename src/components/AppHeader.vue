@@ -75,59 +75,61 @@
       </div>
     </div>
 
-    <!-- 🔹 Botón de Categorías y Carrito (A la derecha) -->
-    <div class="flex items-center ml-auto space-x-4">
-      <!-- 🔹 Botón de Categorías -->
-      <div class="relative">
-        <button
-          @click="toggleCategories"
-          class="group flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 transition-all duration-300 text-gray-700 text-sm"
-        >
-          <span class="font-medium text-xs md:text-sm text-gray-800">Categorías</span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-4 w-4 text-orange-500 transition-transform duration-300"
-            :class="{ 'rotate-180': categoriesOpen }"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+<!-- 🔹 Botón de Categorías y Carrito (A la derecha) -->
+<div class="flex items-center ml-auto space-x-4">
+  <!-- 🔹 Botón de Categorías -->
+  <div class="relative">
+    <button
+      @click="toggleCategories"
+      class="group flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 transition-all duration-300 text-gray-700 text-sm"
+    >
+      <span class="font-medium text-xs md:text-sm text-gray-800">Categorías</span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4 text-orange-500 transition-transform duration-300"
+        :class="{ 'rotate-180': categoriesOpen }"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
 
-        <!-- 🔽 Menú desplegable de categorías -->
-        <transition name="fade">
-          <div
-            v-show="categoriesOpen"
-            class="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden"
+    <!-- 🔽 Menú desplegable de categorías -->
+    <transition name="fade">
+      <div
+        v-show="categoriesOpen"
+        class="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden"
+      >
+        <div class="py-2">
+          <router-link
+            to="/categorias"
+            class="block text-left px-3 py-2 text-xs md:text-sm font-medium text-gray-700 hover:bg-orange-100 transition-all duration-200 active:bg-orange-200"
+            @click.native="closeCategories"
           >
-            <div class="py-2">
-              <router-link
-                to="/categorias"
-                class="block text-left px-3 py-2 text-xs md:text-sm font-medium text-gray-700 hover:bg-orange-100 transition-all duration-200"
-                @click="closeCategories"
+            Ver todas las categorías
+          </router-link>
+          <div class="grid gap-1 max-h-[50vh] overflow-y-auto px-3">
+            <router-link
+              v-for="category in categories"
+              :key="category.id"
+              :to="`/categoria/${category.slug}`"
+              class="flex items-center px-3 py-2 hover:bg-orange-50 text-gray-700 transition-all duration-200 group rounded-md active:bg-orange-200"
+              @click.native="closeCategories"
+            >
+              <span
+                class="text-xs md:text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors"
               >
-                Ver todas las categorías
-              </router-link>
-              <div class="grid gap-1 max-h-[50vh] overflow-y-auto px-3">
-                <router-link
-                  v-for="category in categories"
-                  :key="category.id"
-                  :to="`/categoria/${category.slug}`"
-                  class="flex items-center px-3 py-2 hover:bg-orange-50 text-gray-700 transition-all duration-200 group rounded-md"
-                >
-                  <span
-                    class="text-xs md:text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors"
-                  >
-                    {{ category.name }}
-                  </span>
-                </router-link>
-              </div>
-            </div>
+                {{ category.name }}
+              </span>
+            </router-link>
           </div>
-        </transition>
+        </div>
       </div>
+    </transition>
+  </div>
+  <!-- Resto del código del carrito... -->
 
       <!-- 🔹 Carrito -->
       <router-link
@@ -222,9 +224,7 @@ const toggleCategories = () => {
 };
 
 const closeCategories = () => {
-  setTimeout(() => {
-    categoriesOpen.value = false;
-  }, 200);
+  categoriesOpen.value = false; // Cierre inmediato, sin setTimeout
 };
 
 // 🔍 **Búsqueda en Vivo con Debounce**
@@ -255,4 +255,6 @@ const performSearch = () => {
 
 // 📦 Contador del carrito
 const cartItemCount = computed(() => cartStore.cartItemCount);
+
+
 </script>
