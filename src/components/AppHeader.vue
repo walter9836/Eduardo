@@ -1,6 +1,37 @@
 <template>
+  <!-- 🔹 Barra de Ofertas con Swiper -->
+  <div class="bg-black text-white text-center py-2 w-full fixed top-0 left-0 z-[60] overflow-hidden h-10">
+    <swiper
+      :modules="modules"
+      :slides-per-view="1"
+      :space-between="0"
+      :loop="true"
+      :autoplay="{
+        delay: 4000,
+        disableOnInteraction: false
+      }"
+      class="h-full w-full"
+    >
+    <swiper-slide>
+  <div class="h-full flex items-center justify-center px-2">
+    <p class="w-full text-[12px] sm:text-xs md:text-base font-medium leading-tight">
+      ¡Oferta especial! 20% de descuento en todo hasta el 28 de febrero
+    </p>
+  </div>
+</swiper-slide>
+<swiper-slide>
+  <div class="h-full flex items-center justify-center px-2">
+    <p class="w-full text-[12px] sm:text-xs md:text-base font-medium leading-tight">
+      ¡Envío gratis! En compras superiores a $50 hasta fin de mes
+    </p>
+  </div>
+</swiper-slide>
+    </swiper>
+  </div>
+
+  <!-- Header existente con ajuste para la barra de ofertas -->
   <header
-    class="bg-white text-black p-3 flex items-center justify-between shadow-md w-full px-4 md:px-6 relative z-50"
+    class="bg-white text-black p-3 flex items-center justify-between shadow-md w-full px-4 md:px-6 relative z-50 mt-[44px] md:mt-[44px]"
   >
     <!-- 🔹 Logo (Alineado a la izquierda) -->
     <router-link to="/" class="flex items-center">
@@ -115,41 +146,41 @@
   </header>
 
   <!-- 🔍 Barra de búsqueda en móviles (Debajo del header) -->
-  <div class="w-full px-5 md:px-6 h-15 md:hidden flex justify-center items-center">
-  <div class="relative w-full max-w-xs">
-    <input
-      v-model="searchQuery"
-      type="text"
-      placeholder="Buscar productos..."
-      class="w-full px-6 py-2 border-2 border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm shadow-sm"
-      @input="filterResults"
-      @keyup.enter="performSearch"
-    />
-    <button
-      @click="performSearch"
-      class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-orange-500 transition"
-    >
-      <img src="/lupa.svg" alt="Buscar" class="w-5 h-5" />
-    </button>
+  <div class="w-full px-5 md:px-6 h-15 md:hidden flex justify-center items-center mt-2">
+    <div class="relative w-full max-w-xs">
+      <input
+        v-model="searchQuery"
+        type="text"
+        placeholder="Buscar productos..."
+        class="w-full px-6 py-2 border-2 border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm shadow-sm"
+        @input="filterResults"
+        @keyup.enter="performSearch"
+      />
+      <button
+        @click="performSearch"
+        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-orange-500 transition"
+      >
+        <img src="/lupa.svg" alt="Buscar" class="w-5 h-5" />
+      </button>
 
-    <!-- 🔎 Resultados en Vivo -->
-    <div
-      v-if="searchResults.length > 0"
-      class="absolute top-full left-0 w-full bg-white border border-gray-200 shadow-lg rounded-md z-50 mt-1 max-h-64 overflow-y-auto"
-    >
-      <ul class="py-2">
-        <li
-          v-for="product in searchResults"
-          :key="product.id"
-          class="px-4 py-2 hover:bg-orange-100 cursor-pointer transition"
-          @click="goToProduct(product.slug)"
-        >
-          {{ product.name }}
-        </li>
-      </ul>
+      <!-- 🔎 Resultados en Vivo -->
+      <div
+        v-if="searchResults.length > 0"
+        class="absolute top-full left-0 w-full bg-white border border-gray-200 shadow-lg rounded-md z-50 mt-1 max-h-64 overflow-y-auto"
+      >
+        <ul class="py-2">
+          <li
+            v-for="product in searchResults"
+            :key="product.id"
+            class="px-4 py-2 hover:bg-orange-100 cursor-pointer transition"
+            @click="goToProduct(product.slug)"
+          >
+            {{ product.name }}
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
-</div>
 </template>
 
 <script setup>
@@ -158,6 +189,12 @@ import { useRouter } from 'vue-router';
 import { useCartStore } from '@/store/cartStore';
 import { useStore } from '@/store/store';
 import { debounce } from 'lodash-es';
+import { Swiper, SwiperSlide } from 'swiper/vue'; // Importa Swiper
+import { Autoplay } from 'swiper/modules'; // Importa el módulo Autoplay
+import 'swiper/css'; // Importa los estilos de Swiper
+
+// Define los módulos de Swiper
+const modules = [Autoplay];
 
 const categoriesOpen = ref(false);
 const store = useStore();
@@ -166,7 +203,7 @@ const router = useRouter();
 const searchQuery = ref('');
 const searchResults = ref([]);
 const categories = ref([]);
-const products = ref([]); // ✅ Ahora tenemos productos en memoria
+const products = ref([]);
 
 // 🚀 Cargar categorías y productos al iniciar
 onMounted(async () => {
@@ -219,15 +256,3 @@ const performSearch = () => {
 // 📦 Contador del carrito
 const cartItemCount = computed(() => cartStore.cartItemCount);
 </script>
-
-<style scoped>
-/* Transición para el menú de categorías */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>
