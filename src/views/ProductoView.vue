@@ -1,119 +1,142 @@
 <template>
-    <div class="container mx-auto px-4 py-6">
-      
-      <div v-if="product">
-        <!-- 📌 Enlace de navegación (Inicio > Categoría > Producto) -->
-        <nav class="text-gray-500 text-sm mb-4">
-          <router-link to="/" class="hover:text-orange-500">Inicio</router-link> 
-          <span class="mx-2">/</span>
-          <router-link 
-            v-if="productCategory" 
-            :to="`/categoria/${productCategory.slug}`" 
-            class="hover:text-orange-500 font-medium"
-          >
-            {{ productCategory.name }}
-          </router-link>
-          <span class="mx-2">/</span>
-          <span class="text-gray-700">{{ product.name }}</span>
-        </nav>
-  
-        <!-- 📌 Contenedor principal: Imagen a la izquierda, info a la derecha -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          <!-- 🖼 Imagen del producto (Izquierda) -->
-          <div class="flex justify-center">
-            <img :src="product.image" :alt="product.name" class="w-full max-w-md object-contain shadow-md rounded-lg" />
-          </div>
-  
-          <!-- ℹ️ Información del Producto (Derecha) -->
-          <div>
-            <h1 class="text-3xl font-bold text-gray-800">{{ product.name }}</h1>
-            <p class="text-lg text-orange-600 font-semibold mt-2">S/ {{ product.price }}</p>
-  
-            <!-- 🛒 Botón Agregar al Carrito -->
-            <button
-              @click="addToCart(product)"
-              class="mt-4 bg-orange-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-orange-600 transition"
-            >
-               Agregar al Carrito
-            </button>
-          </div>
-  
-        </div>
-  
-        <!-- 📝 Descripción del Producto (Abajo) -->
-        <div class="mt-8 border-t pt-6">
-          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Descripción</h2>
-          <p class="text-gray-600">{{ product.description }}</p>
-        </div>
+  <div class="container mx-auto px-4 py-6">
+    <div class="space-y-8">
+      <Breadcrumb :product="product" :category="productCategory" />
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <ProductImage :image="product?.image" :alt="product?.name" />
+        <ProductDetails :product="product" @add-to-cart="addToCart" />
       </div>
-  
-      <!-- 🔥 Productos Relacionados -->
-      <div v-if="relatedProducts.length > 0" class="mt-12">
-        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Productos Relacionados</h2>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          <div v-for="related in relatedProducts" :key="related.id" class="border p-4 rounded-lg shadow-md">
-            <router-link :to="`/producto/${related.slug}`">
-              <img :src="related.image" :alt="related.name" class="w-full h-32 object-contain" />
-              <h3 class="text-md font-semibold text-gray-700 mt-2">{{ related.name }}</h3>
-              <p class="text-orange-600 font-bold text-sm">S/ {{ related.price }}</p>
-            </router-link>
-          </div>
-        </div>
-      </div>
-  
-      <!-- ❌ Si el producto no existe -->
-      <div v-else-if="!loading && !product" class="text-center text-gray-500 py-10">
-        Producto no encontrado.
-      </div>
+      <RelatedProducts :products="visibleRelatedProducts" @load-more="loadMoreRelated" />
+      <ProductTabs :product="product" v-model:active-section="activeSection" />
     </div>
-  </template>
-  
-  <script setup>
-  import { ref, watchEffect, onMounted } from 'vue';
-  import { useRoute } from 'vue-router';
-  import { useStore } from '@/store/store';
-  import { useCartStore } from '@/store/cartStore';
-  
-  const route = useRoute();
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import { useStore } from '@/store/store';
+import { useCartStore } from '@/store/cartStore';
+import Breadcrumb from '../components/Breadcrumb.vue';
+import ProductImage from '../components/ProductImage.vue';
+import ProductDetails from '../components/ProductDetails.vue';
+import RelatedProducts from '../components/RelatedProducts.vue';
+import ProductTabs from '../components/ProductTabs.vue';
+
+// Servicio para cargar datos
+const loadProductData = async (slug, forceRefresh = false) => {
   const store = useStore();
-  const cartStore = useCartStore();
-  
-  const product = ref(null);
-  const productCategory = ref(null);
-  const relatedProducts = ref([]);
-  const loading = ref(true);
-  
-  // 🛒 Agregar al carrito
-  const addToCart = (product) => {
-    cartStore.addItem(product);
-  };
-  
-  // ✅ Cargar producto y categoría
-  const loadProduct = async () => {
-    loading.value = true;
-    const slug = route.params.slug;
-  
-    // 🚀 Cargar el producto desde el store
-    product.value = await store.fetchProductBySlug(slug);
-  
-    // 📌 Obtener la categoría del producto
-    if (product.value && product.value.categories.length > 0) {
-      const categorySlug = product.value.categories[0];
-      productCategory.value = store.categories.find(cat => cat.slug === categorySlug);
-      
-      // Cargar productos relacionados
-      relatedProducts.value = await store.fetchRelatedProducts(categorySlug);
+  try {
+    // Buscar primero en el store
+    let product = store.products.find(p => p.slug === slug);
+    if (!product || forceRefresh) {
+      product = await store.fetchProductBySlug(slug, forceRefresh) || {
+        name: 'Producto no encontrado',
+        image: '/placeholder.jpg',
+        price: '0.00',
+        description: 'No se pudo cargar la descripción',
+        attributes: [],
+        slug,
+        categories: [],
+        id: null,
+        yoastMeta: {},
+      };
     }
-  
-    loading.value = false;
-  };
-  
-  // 📌 Cargar producto cuando cambie la ruta
-  watchEffect(() => {
-    loadProduct();
+
+    // Asegurar que attributes sea un array
+    product.attributes = Array.isArray(product.attributes) ? product.attributes : [];
+
+    // Cargar categoría solo si no está en el store
+    const categorySlug = product.categories?.[0] || null;
+    let category = categorySlug
+      ? store.categories.find(cat => cat.slug === categorySlug) || await store.fetchCategoryBySlug(categorySlug)
+      : null;
+
+    // Cargar productos relacionados solo si no están en el store
+    const related = categorySlug
+      ? store.getProductsByCategory(categorySlug).length > 0
+        ? store.getProductsByCategory(categorySlug)
+        : await store.fetchRelatedProducts(categorySlug) || []
+      : [];
+
+    return { product, category, related };
+  } catch (error) {
+    console.error(`Error cargando datos para '${slug}':`, error);
+    return {
+      product: {
+        name: 'Error al cargar',
+        image: '/placeholder.jpg',
+        price: '0.00',
+        description: 'Ocurrió un error al cargar el producto.',
+        attributes: [],
+        slug,
+        categories: [],
+        id: null,
+        yoastMeta: {},
+      },
+      category: null,
+      related: [],
+    };
+  }
+};
+
+// Configuración principal
+const route = useRoute();
+const store = useStore();
+const cartStore = useCartStore();
+
+const productSlug = computed(() => route.params.slug);
+const product = ref(null);
+const productCategory = ref(null);
+const relatedProducts = ref([]);
+const visibleRelatedProducts = ref([]);
+const activeSection = ref('description');
+const itemsPerPage = 4;
+const currentPage = ref(1);
+
+const addToCart = (product) => {
+  if (product?.id) {
+    cartStore.addItem(product);
+  }
+};
+
+const loadMoreRelated = () => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  visibleRelatedProducts.value = relatedProducts.value.slice(0, end);
+  if (end < relatedProducts.value.length) currentPage.value++;
+};
+
+const updateMetaTags = (product) => {
+  if (!product?.yoastMeta) return;
+  document.title = product.yoastMeta.title || product.name || 'Producto';
+  const metaTags = [
+    { name: 'description', content: product.yoastMeta.description || product.description },
+    { property: 'og:title', content: product.yoastMeta.ogTitle || product.name },
+    { property: 'og:description', content: product.yoastMeta.ogDescription || product.description },
+    { property: 'og:image', content: product.yoastMeta.ogImage || product.image },
+  ];
+  metaTags.forEach(tag => {
+    let meta = document.querySelector(`meta[${Object.keys(tag)[0]}="${tag[Object.keys(tag)[0]]}"]`);
+    if (!meta) {
+      meta = document.createElement('meta');
+      Object.entries(tag).forEach(([key, value]) => meta.setAttribute(key, value || ''));
+      document.head.appendChild(meta);
+    } else {
+      meta.setAttribute('content', tag.content || '');
+    }
   });
-  
-  onMounted(loadProduct);
-  </script>
-  
+};
+
+const fetchData = async () => {
+  const { product: loadedProduct, category, related } = await loadProductData(productSlug.value);
+  product.value = loadedProduct;
+  productCategory.value = category;
+  relatedProducts.value = related.filter(p => p.slug !== productSlug.value); // Excluir el producto actual
+  visibleRelatedProducts.value = relatedProducts.value.slice(0, itemsPerPage);
+  updateMetaTags(loadedProduct);
+};
+
+watch(productSlug, fetchData, { immediate: true });
+onMounted(fetchData);
+</script>

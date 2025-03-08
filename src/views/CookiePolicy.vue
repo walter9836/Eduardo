@@ -1,175 +1,130 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8">Política de Cookies</h1>
-    
-    <div class="prose max-w-none space-y-6">
-      <section>
-        <h2 class="text-2xl font-semibold mb-4">1. ¿Qué son las cookies?</h2>
-        <p>
-          Las cookies son pequeños archivos de texto que los sitios web almacenan en su ordenador, tablet, teléfono móvil o 
-          dispositivo similar. Estos archivos permiten que el sitio web recuerde sus acciones y preferencias (como el inicio 
-          de sesión, el idioma, el tamaño de la fuente y otras preferencias de visualización) durante un período de tiempo, 
-          para que no tenga que volver a introducirlas cada vez que regrese al sitio o navegue de una página a otra.
-        </p>
-      </section>
-
-      <section>
-        <h2 class="text-2xl font-semibold mb-4">2. Tipos de cookies que utilizamos</h2>
-        
-        <h3 class="text-xl font-medium mb-2">2.1 Cookies técnicas (Necesarias)</h3>
-        <p>
-          Son aquellas que permiten al usuario la navegación a través de la página web y la utilización de las diferentes 
-          opciones o servicios que en ella existen. Por ejemplo:
-        </p>
-        <ul class="list-disc pl-6 mb-4">
-          <li>Gestionar el inicio de sesión y mantener la sesión del usuario</li>
-          <li>Recordar los productos añadidos al carrito de compra</li>
-          <li>Gestionar el pago de los productos</li>
-          <li>Controlar el fraude vinculado a la seguridad del servicio</li>
-        </ul>
-
-        <h3 class="text-xl font-medium mb-2">2.2 Cookies analíticas</h3>
-        <p>
-          Permiten cuantificar el número de usuarios y realizar la medición y análisis estadístico de la utilización que 
-          hacen los usuarios de nuestros servicios. Por ejemplo:
-        </p>
-        <ul class="list-disc pl-6 mb-4">
-          <li>Analizar el número de visitantes de nuestra web y las páginas más visitadas</li>
-          <li>Medir el tiempo que los usuarios pasan en nuestra web</li>
-          <li>Conocer si los usuarios son nuevos o repiten visita</li>
-        </ul>
-
-        <h3 class="text-xl font-medium mb-2">2.3 Cookies de personalización</h3>
-        <p>
-          Son aquellas que permiten al usuario acceder al servicio con algunas características predefinidas en función de 
-          una serie de criterios. Por ejemplo:
-        </p>
-        <ul class="list-disc pl-6 mb-4">
-          <li>El idioma</li>
-          <li>El tipo de navegador</li>
-          <li>La configuración regional desde donde accede al servicio</li>
-        </ul>
-
-        <h3 class="text-xl font-medium mb-2">2.4 Cookies publicitarias</h3>
-        <p>
-          Son aquellas que permiten la gestión de los espacios publicitarios incluidos en nuestra página web en base a 
-          criterios como el contenido editado o la frecuencia en la que se muestran los anuncios.
-        </p>
-      </section>
-
-      <section>
-        <h2 class="text-2xl font-semibold mb-4">3. ¿Cómo gestionamos las cookies?</h2>
-        <p>
-          Al acceder por primera vez a nuestra web, verá un aviso de cookies donde podrá:
-        </p>
-        <ul class="list-disc pl-6 mb-4">
-          <li>Aceptar todas las cookies</li>
-          <li>Rechazar todas las cookies excepto las técnicas necesarias</li>
-          <li>Configurar sus preferencias de manera personalizada</li>
-        </ul>
-        <p>
-          Puede modificar sus preferencias en cualquier momento desde el panel de configuración de cookies accesible 
-          desde el pie de página de nuestra web.
-        </p>
-      </section>
-
-      <section>
-        <h2 class="text-2xl font-semibold mb-4">4. ¿Cómo deshabilitar las cookies?</h2>
-        <p>
-          Puede permitir, bloquear o eliminar las cookies instaladas en su equipo mediante la configuración de las 
-          opciones de su navegador de internet. A continuación le mostramos cómo:
-        </p>
-        <ul class="list-disc pl-6 mb-4">
-          <li>
-            <a href="https://support.google.com/chrome/answer/95647?hl=es" target="_blank" class="text-orange-500 hover:text-orange-600">
-              Chrome
-            </a>
-          </li>
-          <li>
-            <a href="https://support.mozilla.org/es/kb/habilitar-y-deshabilitar-cookies-sitios-web-rastrear-preferencias" target="_blank" class="text-orange-500 hover:text-orange-600">
-              Firefox
-            </a>
-          </li>
-          <li>
-            <a href="https://support.microsoft.com/es-es/microsoft-edge/eliminar-las-cookies-en-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" class="text-orange-500 hover:text-orange-600">
-              Edge
-            </a>
-          </li>
-          <li>
-            <a href="https://support.apple.com/es-es/guide/safari/sfri11471/mac" target="_blank" class="text-orange-500 hover:text-orange-600">
-              Safari
-            </a>
-          </li>
-        </ul>
-      </section>
-
-      <section>
-        <h2 class="text-2xl font-semibold mb-4">5. Actualizaciones y cambios</h2>
-        <p>
-          Podemos modificar esta Política de Cookies en función de nuevas exigencias legislativas, reglamentarias, o con 
-          la finalidad de adaptar dicha política a las instrucciones dictadas por la Agencia Española de Protección de Datos.
-        </p>
-        <p>
-          Cuando se produzcan cambios significativos en esta Política de Cookies se comunicará al usuario mediante un 
-          aviso informativo en la página web.
-        </p>
-        <p>
-          Si desea más información sobre el uso que hacemos de las cookies, puede enviarnos un email a: 
-          [tu-email@dominio.com]
-        </p>
-      </section>
-
-      <section>
-        <h2 class="text-2xl font-semibold mb-4">6. Contacto</h2>
-        <p>
-          Para cualquier pregunta, comentario o preocupación sobre nuestra Política de Cookies, puede contactar con 
-          nosotros:
-        </p>
-        <ul class="list-disc pl-6 mb-4">
-          <li>Email: [tu-email@dominio.com]</li>
-          <li>Teléfono: [tu-teléfono]</li>
-          <li>Dirección: [tu-dirección]</li>
-        </ul>
-      </section>
-
-      <section class="mt-8 text-sm text-gray-600">
-        <p>Última actualización: [fecha de última actualización]</p>
-      </section>
+  <div v-if="showBanner" class="cookie-consent fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 px-4 py-4">
+    <div class="container mx-auto">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-sm text-gray-600">
+          <p>
+            Este sitio web utiliza cookies para mejorar su experiencia. 
+            <router-link to="/politica-cookies" class="text-orange-500 hover:text-orange-600 underline">
+              Más información
+            </router-link>
+          </p>
+        </div>
+        <div class="flex gap-3">
+          <button @click="acceptWithNotifications" class="px-4 py-2 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg">
+            Aceptar y recibir ofertas
+          </button>
+          <button @click="acceptBasic" class="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">
+            Solo esencial
+          </button>
+          <button @click="rejectCookies" class="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">
+            Rechazar
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
+<script setup>
+import { ref, onMounted } from 'vue';
+
+// Estado del consentimiento
+const cookiesAccepted = localStorage.getItem('cookiesAccepted');
+const isAccepted = ref(cookiesAccepted === 'true' || cookiesAccepted === 'basic');
+const showBanner = ref(cookiesAccepted === null);
+
+// Lógica para aceptar todas las cookies (con notificaciones)
+const acceptWithNotifications = () => {
+  localStorage.setItem('cookiesAccepted', 'true');
+  isAccepted.value = true;
+  showBanner.value = false;
+  activateAnalytics();
+};
+
+// Lógica para aceptar solo cookies esenciales
+const acceptBasic = () => {
+  localStorage.setItem('cookiesAccepted', 'basic');
+  isAccepted.value = true;
+  showBanner.value = false;
+  deactivateAnalytics();
+  useFirstPartyAnalytics(); // Usar cookies first-party o Privacy Sandbox
+};
+
+// Lógica para rechazar cookies no esenciales
+const rejectCookies = () => {
+  localStorage.setItem('cookiesAccepted', 'false');
+  isAccepted.value = false;
+  showBanner.value = false;
+  deleteNonEssentialCookies();
+  deactivateAnalytics();
+  useFirstPartyAnalytics(); // Usar alternativas sin cookies de terceros
+};
+
+// Eliminar cookies no esenciales
+const deleteNonEssentialCookies = () => {
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name] = cookie.split('=').map(c => c.trim());
+    if (name && !name.startsWith('_ga_') && name !== 'cookiesAccepted') {
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${window.location.hostname};`;
+    }
+  }
+  // Eliminar cookies de Google Analytics específicas
+  document.cookie = 'ar_debug=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.www.google-analytics.com;';
+};
+
+// Activar Google Analytics (cookies de terceros, opcional)
+const activateAnalytics = () => {
+  if (window.gtag) return; // Evitar duplicados
+  const script = document.createElement('script');
+  script.src = "https://www.googletagmanager.com/gtag/js?id=UA-XXXXX-Y"; // Reemplaza con tu ID real
+  script.async = true;
+  script.setAttribute('crossorigin', 'anonymous'); // Mejorar compatibilidad
+  document.head.appendChild(script);
+
+  script.onload = () => {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    gtag('js', new Date());
+    gtag('config', 'UA-XXXXX-Y', { 
+      'anonymize_ip': true, 
+      'cookie_flags': 'SameSite=None;Secure;Partitioned' // Añadir atributos para Privacy Sandbox
+    });
+  };
+};
+
+// Desactivar Google Analytics (cookies de terceros)
+const deactivateAnalytics = () => {
+  if (window.gtag) {
+    window['ga-disable-UA-XXXXX-Y'] = true;
+    deleteNonEssentialCookies();
+  }
+};
+
+// Usar alternativas first-party o Privacy Sandbox
+const useFirstPartyAnalytics = () => {
+  // Ejemplo: usar cookies first-party o Attribution Reporting
+  localStorage.setItem('analytics_first_party', JSON.stringify({
+    visits: (localStorage.getItem('analytics_first_party') ? JSON.parse(localStorage.getItem('analytics_first_party')).visits + 1 : 1),
+    timestamp: Date.now()
+  }));
+  console.log('Usando métricas first-party en localStorage');
+};
+
+onMounted(() => {
+  if (cookiesAccepted === 'false') {
+    deleteNonEssentialCookies();
+    deactivateAnalytics();
+    useFirstPartyAnalytics();
+  } else if (cookiesAccepted === 'true') {
+    activateAnalytics();
+  }
+});
+</script>
+
 <style scoped>
-.prose h2 {
-  color: #1f2937;
-  margin-top: 2rem;
-}
-
-.prose h3 {
-  color: #374151;
-  margin-top: 1.5rem;
-}
-
-.prose p {
-  color: #4b5563;
-  line-height: 1.6;
-}
-
-.prose ul {
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.prose li {
-  margin-bottom: 0.5rem;
-}
-
-.prose a {
-  color: #f97316;
-  text-decoration: none;
-}
-
-.prose a:hover {
-  text-decoration: underline;
+.cookie-consent {
+  /* Estilos personalizados */
 }
 </style>

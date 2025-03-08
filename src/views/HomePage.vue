@@ -98,4 +98,7 @@ const navigationOptions = {
   prevEl: '.swiper-button-prev',
   nextEl: '.swiper-button-next',
 };
+
+
 </script>
+

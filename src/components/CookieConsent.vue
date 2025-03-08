@@ -1,5 +1,5 @@
 <template>
-  <div v-if="!isAccepted" class="cookie-consent fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 px-4 py-4">
+  <div v-if="showBanner" class="cookie-consent fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 px-4 py-4">
     <div class="container mx-auto">
       <div class="flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="text-sm text-gray-600">
@@ -29,68 +29,102 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
-// Revisamos si el valor está guardado en localStorage, de lo contrario, lo inicializamos como null
+// Estado del consentimiento
 const cookiesAccepted = localStorage.getItem('cookiesAccepted');
-const isAccepted = ref(cookiesAccepted ? cookiesAccepted === 'true' : null);
+const isAccepted = ref(cookiesAccepted === 'true' || cookiesAccepted === 'basic');
+const showBanner = ref(cookiesAccepted === null);
 
-// Lógica para aceptar cookies con notificaciones
+// Lógica para aceptar todas las cookies (con notificaciones)
 const acceptWithNotifications = () => {
   localStorage.setItem('cookiesAccepted', 'true');
   isAccepted.value = true;
-  activateAnalytics();  // Activar cookies de marketing, por ejemplo
+  showBanner.value = false;
+  activateAnalytics();
 };
 
-// Lógica para aceptar solo las cookies esenciales
+// Lógica para aceptar solo cookies esenciales
 const acceptBasic = () => {
-  localStorage.setItem('cookiesAccepted', 'true');
+  localStorage.setItem('cookiesAccepted', 'basic');
   isAccepted.value = true;
-  deactivateAnalytics();  // No cargar cookies de marketing
+  showBanner.value = false;
+  deactivateAnalytics();
+  useFirstPartyAnalytics(); // Usar cookies first-party o Privacy Sandbox
 };
 
-// Lógica para rechazar las cookies (se establece en 'false' y puedes eliminar cookies no esenciales si es necesario)
+// Lógica para rechazar cookies no esenciales
 const rejectCookies = () => {
   localStorage.setItem('cookiesAccepted', 'false');
-  isAccepted.value = true;
-  deleteNonEssentialCookies();  // Eliminar cookies de marketing y seguimiento
+  isAccepted.value = false;
+  showBanner.value = false;
+  deleteNonEssentialCookies();
+  deactivateAnalytics();
+  useFirstPartyAnalytics(); // Usar alternativas sin cookies de terceros
 };
 
-// Eliminar cookies no esenciales (como las de seguimiento)
+// Eliminar cookies no esenciales
 const deleteNonEssentialCookies = () => {
-  document.cookie = "ga-cookie-name=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-  // Aquí puedes añadir más cookies para eliminar
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name] = cookie.split('=').map(c => c.trim());
+    if (name && !name.startsWith('_ga_') && name !== 'cookiesAccepted') {
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${window.location.hostname};`;
+    }
+  }
+  // Eliminar cookies de Google Analytics específicas
+  document.cookie = 'ar_debug=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.www.google-analytics.com;';
 };
 
-// Activar cookies de marketing (por ejemplo, Google Analytics)
+// Activar Google Analytics (cookies de terceros, opcional)
 const activateAnalytics = () => {
+  if (window.gtag) return; // Evitar duplicados
   const script = document.createElement('script');
-  script.src = "https://www.googletagmanager.com/gtag/js?id=UA-XXXXX-Y"; // Reemplaza con tu ID de Analytics
+  script.src = "https://www.googletagmanager.com/gtag/js?id=UA-XXXXX-Y"; // Reemplaza con tu ID real
   script.async = true;
+  script.setAttribute('crossorigin', 'anonymous'); // Mejorar compatibilidad
   document.head.appendChild(script);
 
   script.onload = () => {
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    window.gtag = function () { window.dataLayer.push(arguments); };
     gtag('js', new Date());
-
-    gtag('config', 'UA-XXXXX-Y'); // Reemplaza con tu ID de Analytics
+    gtag('config', 'UA-XXXXX-Y', { 
+      'anonymize_ip': true, 
+      'cookie_flags': 'SameSite=None;Secure;Partitioned' // Añadir atributos para Privacy Sandbox
+    });
   };
 };
 
-// Desactivar cookies de marketing (si el usuario las rechaza)
+// Desactivar Google Analytics (cookies de terceros)
 const deactivateAnalytics = () => {
-  window['ga-disable-UA-XXXXX-Y'] = true; // Reemplaza con tu ID de Analytics
+  if (window.gtag) {
+    window['ga-disable-UA-XXXXX-Y'] = true;
+    deleteNonEssentialCookies();
+  }
+};
+
+// Usar alternativas first-party o Privacy Sandbox
+const useFirstPartyAnalytics = () => {
+  // Ejemplo: usar cookies first-party o Attribution Reporting
+  localStorage.setItem('analytics_first_party', JSON.stringify({
+    visits: (localStorage.getItem('analytics_first_party') ? JSON.parse(localStorage.getItem('analytics_first_party')).visits + 1 : 1),
+    timestamp: Date.now()
+  }));
+  console.log('Usando métricas first-party en localStorage');
 };
 
 onMounted(() => {
-  // Si el usuario rechazó las cookies, podemos borrar las cookies no esenciales
-  if (isAccepted.value === false) {
+  if (cookiesAccepted === 'false') {
     deleteNonEssentialCookies();
+    deactivateAnalytics();
+    useFirstPartyAnalytics();
+  } else if (cookiesAccepted === 'true') {
+    activateAnalytics();
   }
 });
 </script>
 
 <style scoped>
 .cookie-consent {
-  /* Estilos personalizados para el banner de cookies */
+  /* Estilos personalizados */
 }
 </style>

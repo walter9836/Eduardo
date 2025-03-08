@@ -12,6 +12,10 @@ const router = createRouter({
       path: '/categoria/:slug',
       name: 'CategoriaView',
       component: () => import(/* webpackChunkName: "categoria" */ '../views/CategoriaView.vue'),
+      props: (route) => ({
+        slug: route.params.slug, // Pasar slug explícitamente
+        page: parseInt(route.query.page) || 1, // Pasar page desde query
+      }),
     },
     {
       path: '/producto/:slug',
@@ -27,6 +31,11 @@ const router = createRouter({
       path: '/politica-cookies',
       name: 'CookiePolicy',
       component: () => import(/* webpackChunkName: "legal" */ '../views/CookiePolicy.vue'),
+    },
+    {
+      path: '/nosotros',
+      name: 'AboutUs',
+      component: () => import(/* webpackChunkName: "about" */ '../components/AboutUs.vue'),
     },
     {
       path: '/:pathMatch(.*)*',

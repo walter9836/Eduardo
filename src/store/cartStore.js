@@ -2,15 +2,32 @@ import { defineStore } from 'pinia';
 import { saveToIndexedDB, getFromIndexedDB } from '@/utils/indexedDB';
 
 export const useCartStore = defineStore('cartStore', {
-  state: () => ({
-    cart: JSON.parse(sessionStorage.getItem('cart')) || [], // ✅ Usar `sessionStorage` primero
-  }),
+  state: () => {
+    let initialCart = [];
+    try {
+      const sessionCart = sessionStorage.getItem('cart');
+      if (sessionCart) {
+        const parsed = JSON.parse(sessionCart);
+        initialCart = Array.isArray(parsed) ? parsed : [];
+      }
+    } catch (error) {
+      console.error('❌ Error al parsear sessionStorage.cart:', error);
+      initialCart = [];
+    }
+    return {
+      cart: initialCart, // ✅ Siempre un array
+    };
+  },
 
   actions: {
     /**
      * ✅ Agregar un producto al carrito
      */
     async addItem(product) {
+      if (!product || !product.id) {
+        console.error('Producto inválido:', product);
+        return;
+      }
       const existingProduct = this.cart.find(item => item.id === product.id);
       if (existingProduct) {
         existingProduct.quantity += 1;
@@ -43,7 +60,6 @@ export const useCartStore = defineStore('cartStore', {
       try {
         await saveToIndexedDB('cart', this.cart);
         sessionStorage.setItem('cart', JSON.stringify(this.cart)); // ✅ Guardar copia en `sessionStorage`
-        console.log("✅ Carrito guardado correctamente.");
       } catch (error) {
         console.error("❌ Error al guardar el carrito:", error);
       }
@@ -56,15 +72,22 @@ export const useCartStore = defineStore('cartStore', {
       try {
         const cachedCart = await getFromIndexedDB('cart');
         if (cachedCart) {
-          this.cart = cachedCart;
+          // ✅ Validar que cachedCart sea un array
+          this.cart = Array.isArray(cachedCart) ? cachedCart : [];
           sessionStorage.setItem('cart', JSON.stringify(this.cart)); // ✅ Actualizar `sessionStorage`
-          console.log("✅ Carrito cargado desde IndexedDB.");
         } else {
-          console.log("⚠️ No hay datos en IndexedDB, usando sessionStorage.");
-          this.cart = JSON.parse(sessionStorage.getItem('cart')) || [];
+          // ✅ Si no hay datos en IndexedDB, intentar con sessionStorage
+          const sessionCart = sessionStorage.getItem('cart');
+          if (sessionCart) {
+            const parsed = JSON.parse(sessionCart);
+            this.cart = Array.isArray(parsed) ? parsed : [];
+          } else {
+            this.cart = [];
+          }
         }
       } catch (error) {
-        console.error("❌ Error al cargar el carrito:", error);
+        console.error("❌ Error al cargar el carrito desde IndexedDB:", error);
+        this.cart = []; // ✅ Resetear a array vacío en caso de error
       }
     },
   },
@@ -74,14 +97,18 @@ export const useCartStore = defineStore('cartStore', {
      * ✅ Obtener el total del carrito
      */
     cartTotal: (state) => {
-      return state.cart.reduce((total, item) => total + item.price * item.quantity, 0);
+      return Array.isArray(state.cart)
+        ? state.cart.reduce((total, item) => total + (item.price * item.quantity || 0), 0)
+        : 0;
     },
 
     /**
      * ✅ Obtener el número total de productos en el carrito
      */
     cartItemCount: (state) => {
-      return state.cart.reduce((count, item) => count + item.quantity, 0);
+      return Array.isArray(state.cart)
+        ? state.cart.reduce((count, item) => count + (item.quantity || 0), 0)
+        : 0;
     },
   },
 });

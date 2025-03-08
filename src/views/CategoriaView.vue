@@ -1,172 +1,213 @@
 <template>
   <div class="container mx-auto px-4 py-6">
-    <!-- Nombre de la categoría seleccionada como h1 -->
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ categoryTitle }}</h1>
-
-    <!-- 📌 FILTROS + LISTA DE PRODUCTOS -->
+    <Breadcrumb :category="categoryData" />
     <div class="flex gap-6">
-      <!-- 📌 FILTRO: Enlace de Categoría + Precio -->
       <aside class="hidden md:block w-1/4">
-        <div class="border p-4 rounded-md shadow-md bg-white">
-          <!-- ✅ Enlace de la categoría actual -->
-          <router-link
-            :to="`/categoria/${categorySlug}`"
-            class="text-orange-500 font-semibold hover:underline block mb-4"
-          >
-            {{ categoryTitle }}
-          </router-link>
-
-          <!-- 🔹 Filtro de Precio -->
-          <h3 class="text-lg font-semibold text-gray-800 mb-3">Filtrar por Precio</h3>
-          <div>
-            <label class="block text-gray-700 font-medium">Precio Máximo</label>
-            <input
-              type="range"
-              v-model="priceFilter"
-              min="0"
-              max="5000"
-              step="50"
-              @input="applyFilters"
-              class="w-full"
-            />
-            <p class="text-gray-600 text-sm mt-1">S/ {{ priceFilter }}</p>
-          </div>
-
-          <!-- 🔄 Botón para limpiar el filtro -->
-          <button
-            @click="clearFilters"
-            class="w-full bg-gray-400 text-white font-semibold py-2 mt-4 rounded-md hover:bg-gray-500 transition"
-          >
-            Limpiar Filtros
-          </button>
-        </div>
+        <FilterSidebar
+          :category-slug="categorySlug"
+          :category-title="categoryTitle"
+          :unique-attributes="uniqueAttributes"
+          v-model:filters="localFilters"
+          v-model:expanded-attributes="expandedAttributes"
+          @apply-filters="applyFiltersFromSidebar"
+          @clear-filters="clearFiltersFromSidebar"
+        />
       </aside>
-
-      <!-- 🛍️ LISTADO DE PRODUCTOS -->
       <div class="w-full md:w-3/4">
-        <div
-          v-if="filteredProducts.length > 0"
-          class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
-        >
-          <div
-            v-for="product in filteredProducts"
-            :key="product.id"
-            class="relative border rounded-lg shadow-md overflow-hidden hover:shadow-lg transition h-[480px] flex flex-col group"
-          >
-            <router-link
-              :to="`/producto/${product.slug}`"
-              class="block h-[45%] flex justify-center items-center p-3"
+        <div v-if="store.error" class="text-center text-red-500 py-10">
+          {{ store.error }}
+        </div>
+        <div v-else-if="!store.loading">
+          <!-- Paginación -->
+          <div class="flex justify-center items-center space-x-4 mb-6">
+            <span 
+              @click="prevPage" 
+              :class="[
+                'px-3 py-2 cursor-pointer',
+                store.currentPage <= 1 ? 'text-gray-400 cursor-not-allowed' : 'text-black hover:text-orange-500 transition'
+              ]"
             >
-              <img
-                :src="product.image"
-                :alt="product.name"
-                class="max-h-full max-w-full object-contain transition-transform duration-200"
-                loading="lazy"
-              />
-            </router-link>
-
-            <div class="p-4 flex flex-col flex-grow">
-              <h2 class="text-lg font-semibold text-gray-800 line-clamp-2 flex-grow">
-                {{ product.name }}
-              </h2>
-            </div>
-
-            <div class="absolute bottom-3 left-0 w-full flex flex-col items-center">
-              <p class="text-orange-600 font-bold text-lg">S/ {{ product.price }}</p>
-
-              <!-- Botón Agregar al Carrito con texto adaptado para móvil -->
+              < <!-- Flecha izquierda -->
+            </span>
+            <div class="flex space-x-2">
               <button
-                @click="addToCart(product)"
-                class="md:opacity-0 group-hover:opacity-100 opacity-100 bg-orange-500 text-white font-semibold py-2 px-4 text-sm w-3/4 sm:w-11/12 text-center rounded-full mt-2 transition-all duration-200 hover:bg-orange-600 hover:scale-105 active:scale-95"
+                v-for="page in store.totalPages"
+                :key="page"
+                @click="goToPage(page)"
+                :class="[
+                  'px-3 py-1 rounded-md transition',
+                  store.currentPage === page ? 'bg-orange-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
+                ]"
               >
-                <span class="block sm:hidden">Agregar</span>
-                <span class="hidden sm:block">Agregar al Carrito</span>
+                {{ page }}
               </button>
             </div>
+            <span 
+              @click="nextPage" 
+              :class="[
+                'px-3 py-2 cursor-pointer',
+                store.currentPage >= store.totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-black hover:text-orange-500 transition'
+              ]"
+            >
+              > <!-- Flecha derecha -->
+            </span>
           </div>
-        </div>
-
-        <!-- ❌ Si no hay productos en la categoría -->
-        <div v-else class="text-center text-gray-500 py-10">
-          No hay productos disponibles con estos filtros.
+          <ProductGrid :products="filteredProducts" @add-to-cart="addToCart" />
         </div>
       </div>
     </div>
-    <!-- 🔹 Cierra el contenedor flexible -->
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useStore } from '@/store/store';
 import { useCartStore } from '@/store/cartStore';
+import Breadcrumb from '@/components/Breadcrumb.vue';
+import FilterSidebar from '@/components/FilterSidebar.vue';
+import ProductGrid from '@/components/ProductGrid.vue';
 
 const route = useRoute();
+const router = useRouter();
 const store = useStore();
 const cartStore = useCartStore();
 
-const categorySlug = computed(() => route.params.slug);
 const categoryTitle = ref('');
-const allProducts = ref([]);
 const filteredProducts = ref([]);
-const priceFilter = ref(5000); // Precio máximo por defecto
+const localFilters = ref({ price: '', attributes: {} }); // Filtros en borrador
+const activeFilters = ref({ price: '', attributes: {} }); // Filtros aplicados
+const expandedAttributes = ref({});
 
-// Función para actualizar el nombre de la categoría
-const updateCategoryTitle = async () => {
-  let categories = store.categories;
+const categorySlug = computed(() => route.params.slug);
 
-  if (categories.length === 0) {
-    await store.fetchCategories();
-    categories = store.categories;
-  }
+const categoryData = computed(() => {
+  return store.categories.find(cat => cat.slug === categorySlug.value) || null;
+});
 
-  const category = categories.find((cat) => cat.slug === categorySlug.value);
-  if (category) {
-    categoryTitle.value = category.name;
-    sessionStorage.setItem(`category_${categorySlug.value}`, category.name);
-  }
-};
-
-// Función para cargar productos de la categoría seleccionada
-const loadProducts = async () => {
-  updateCategoryTitle();
-
-  const cachedProducts = sessionStorage.getItem(`products_${categorySlug.value}`);
-  if (cachedProducts) {
-    allProducts.value = JSON.parse(cachedProducts);
-  } else {
-    allProducts.value = await store.fetchProductsByCategory(categorySlug.value);
-    sessionStorage.setItem(`products_${categorySlug.value}`, JSON.stringify(allProducts.value));
-  }
-
-  applyFilters();
-};
-
-// Aplicar filtros de precio
-const applyFilters = () => {
-  filteredProducts.value = allProducts.value.filter((product) => {
-    return product.price <= Number(priceFilter.value);
+const uniqueAttributes = computed(() => {
+  console.log('Calculando uniqueAttributes con store.products:', store.products);
+  const attributesMap = new Map();
+  store.products.forEach(product => {
+    (product.attributes || []).forEach(attr => {
+      const normalizedName = attr.name.toLowerCase().trim().replace(/\s+/g, '-');
+      const normalizedOptions = Array.from(new Set(
+        (attr.options || []).map(option => option.toLowerCase().trim())
+      ));
+      const attrKey = `${normalizedName}-${normalizedOptions.sort().join('-')}`;
+      if (!attributesMap.has(attrKey)) {
+        attributesMap.set(attrKey, {
+          slug: normalizedName,
+          name: attr.name,
+          options: normalizedOptions,
+        });
+      }
+    });
   });
+  const uniqueAttrs = Array.from(attributesMap.values());
+  console.log('Atributos únicos:', uniqueAttrs);
+  return uniqueAttrs;
+});
+
+const filteredProductsComputed = computed(() => {
+  if (!Array.isArray(store.products)) {
+    console.warn('store.products no es un array:', store.products);
+    return [];
+  }
+
+  console.log('🔍 Filtrando productos con filtros activos:', activeFilters.value);
+  const filtered = store.products.filter(product => {
+    // Filtro por precio
+    if (activeFilters.value.price) {
+      const [min, max] = activeFilters.value.price.split('-').map(Number);
+      const productPrice = Number(product.price) || 0;
+      if (activeFilters.value.price === '1000+') {
+        if (productPrice < 1000) return false;
+      } else if (productPrice < min || (max && productPrice > max)) {
+        return false;
+      }
+    }
+
+    // Filtro por atributos
+    for (const [attrSlug, selectedOption] of Object.entries(activeFilters.value.attributes)) {
+      if (selectedOption && selectedOption !== '') {
+        const attribute = product.attributes.find(attr => 
+          attr.name.toLowerCase().trim().replace(/\s+/g, '-') === attrSlug
+        );
+        if (!attribute || !attribute.options.includes(selectedOption)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  });
+  console.log('Productos filtrados en computed:', filtered.length);
+  return filtered;
+});
+
+// Solo actualiza filteredProducts cuando se aplican los filtros
+const applyFiltersFromSidebar = () => {
+  console.log('🚀 applyFiltersFromSidebar ejecutado con filtros:', JSON.stringify(localFilters.value));
+  activeFilters.value = JSON.parse(JSON.stringify(localFilters.value)); // Copia profunda
+  filteredProducts.value = filteredProductsComputed.value;
 };
 
-// Limpiar filtros
-const clearFilters = () => {
-  priceFilter.value = 5000;
-  applyFilters();
+const clearFiltersFromSidebar = () => {
+  localFilters.value = { price: '', attributes: {} };
+  activeFilters.value = { price: '', attributes: {} };
+  expandedAttributes.value = {};
+  filteredProducts.value = store.products; // Mostrar todos los productos
 };
 
-// Agregar productos al carrito
+const updateCategoryTitle = () => {
+  const category = store.categories.find(cat => cat.slug === categorySlug.value);
+  categoryTitle.value = category ? category.name : 'Categoría no encontrada';
+  if (category) sessionStorage.setItem(`category_${categorySlug.value}`, category.name);
+};
+
+const loadProducts = async (page) => {
+  store.currentPage = page;
+  await store.fetchProductsByCategory(categorySlug.value, page);
+  updateCategoryTitle();
+  filteredProducts.value = store.products; // Inicialmente mostrar todos
+  console.log(`Cargando productos para página ${page}, total productos: ${store.totalProducts}, total páginas: ${store.totalPages}`);
+};
+
 const addToCart = (product) => {
   cartStore.addItem(product);
 };
 
-// Observar cambios en la categoría y actualizar los datos
-watch(categorySlug, async () => {
-  await updateCategoryTitle();
-  await loadProducts();
+const prevPage = () => {
+  if (store.currentPage > 1) goToPage(store.currentPage - 1);
+};
+
+const nextPage = () => {
+  if (store.currentPage < store.totalPages) goToPage(store.currentPage + 1);
+};
+
+const goToPage = (page) => {
+  router.push({
+    path: `/categoria/${categorySlug.value}`,
+    query: { page },
+  });
+  loadProducts(page);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+watch(() => route.query.page, (newPage) => {
+  const page = parseInt(newPage) || 1;
+  if (page !== store.currentPage) loadProducts(page);
 });
 
-// Ejecutar al montar el componente
-onMounted(loadProducts);
+watch(categorySlug, () => {
+  store.clearState();
+  filteredProducts.value = [];
+  const page = parseInt(route.query.page) || 1;
+  loadProducts(page);
+});
+
+onMounted(() => {
+  const page = parseInt(route.query.page) || 1;
+  loadProducts(page);
+});
 </script>

@@ -9,9 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sentry/vue": "^9.3.0",
     "@tailwindcss/vite": "^4.0.5",
     "axios": "^1.7.9",
     "idb": "^8.0.2",
+    "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
     "pinia": "^3.0.1",
     "swiper": "^11.2.4",
