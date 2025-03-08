@@ -67,13 +67,6 @@
     </div>
 
     <div class="flex items-center ml-auto space-x-4">
-      <button
-        @click="clearCache"
-        class="bg-gray-500 text-white text-xs px-2 py-1 rounded hover:bg-gray-600 transition"
-      >
-        Limpiar Caché
-      </button>
-
       <div class="relative">
         <button
           @click="toggleCategories"
@@ -266,18 +259,7 @@ const performSearch = () => {
 };
 
 const cartItemCount = computed(() => cartStore.cartItemCount);
-
-const clearCache = () => {
-  sessionStorage.clear();
-  localStorage.clear();
-  searchStore.clearSearch();
-  store.clearState();
-  store.fetchCategoriesMinimal();
-  router.go(0);
-  console.log('🧹 Caché limpiado y página recargada');
-};
 </script>
-
 
 <style scoped>
 .fade-enter-active,
