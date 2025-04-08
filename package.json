@@ -11,7 +11,9 @@
   "dependencies": {
     "@sentry/vue": "^9.3.0",
     "@tailwindcss/vite": "^4.0.5",
-    "axios": "^1.7.9",
+    "@unhead/vue": "^2.0.5",
+    "axios": "^1.8.2",
+    "axios-retry": "^4.5.0",
     "idb": "^8.0.2",
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",

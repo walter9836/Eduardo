@@ -29,3 +29,22 @@ import ProductCard from './ProductCard.vue';
 defineProps(['products']);
 defineEmits(['add-to-cart']);
 </script>
+
+<style scoped>
+/* Opcional: Ajustar la animación del esqueleto si Tailwind no es suficiente */
+.animate-pulse {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+</style>

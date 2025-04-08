@@ -2,12 +2,16 @@ import { defineStore } from 'pinia';
 import axios from 'axios';
 import { openDB } from 'idb';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const WC_API_URL = import.meta.env.VITE_API_URL;
 const API_KEY = import.meta.env.VITE_WC_CONSUMER_KEY;
 const API_SECRET = import.meta.env.VITE_WC_CONSUMER_SECRET;
 
+if (!WC_API_URL || !API_KEY || !API_SECRET) {
+  throw new Error('Faltan variables de entorno para la API de WooCommerce');
+}
+
 const dbPromise = openDB('storeDB', 2, {
-  upgrade(db, oldVersion, newVersion, transaction) {
+  upgrade(db, oldVersion) {
     if (oldVersion < 1) {
       db.createObjectStore('productsByCategory');
     }
@@ -22,13 +26,17 @@ export const useStore = defineStore('mainStore', {
   state: () => ({
     products: [],
     categories: [],
+    currentCategorySlug: null,
+    currentProductSlug: null,
     loading: false,
     lastFetch: 0,
     isPreloaded: false,
+    isContentReady: false,
     error: null,
     currentPage: 1,
     totalPages: 0,
     totalProducts: 0,
+    yoastMeta: {},
   }),
 
   actions: {
@@ -42,21 +50,27 @@ export const useStore = defineStore('mainStore', {
         if (parsed && parsed.slug === slug) {
           console.log(`⚡ Categoría '${slug}' desde localStorage`);
           if (!this.categories.some(cat => cat.slug === slug)) {
-            this.categories = this.categories.concat(parsed);
+            this.categories = [...this.categories, parsed];
           }
+          this.yoastMeta[slug] = parsed.yoastMeta || {};
+          this.isContentReady = true;
           return parsed;
         }
       }
 
       this.loading = true;
+      this.isContentReady = false;
       try {
-        const response = await axios.get(`${API_URL}/products/categories`, {
+        const response = await axios.get(`${WC_API_URL}/products/categories`, {
           params: { consumer_key: API_KEY, consumer_secret: API_SECRET, slug, per_page: 1 },
         });
 
         const data = response.data || [];
         if (!Array.isArray(data) || !data.length) {
-          throw new Error(`No se encontró la categoría '${slug}' en la API`);
+          console.warn(`⚠️ Categoría '${slug}' no encontrada en la API`);
+          this.error = `La categoría '${slug}' no existe.`;
+          this.isContentReady = false;
+          return null;
         }
 
         const category = {
@@ -64,15 +78,19 @@ export const useStore = defineStore('mainStore', {
           name: data[0].name,
           slug: data[0].slug,
           image: data[0].image ? data[0].image.src : '/placeholder.jpg',
+          yoastMeta: data[0].yoast_meta || {},
         };
 
         this.categories = this.categories.filter(cat => cat.slug !== slug).concat(category);
+        this.yoastMeta[slug] = category.yoastMeta;
         localStorage.setItem(cacheKey, JSON.stringify(category));
-        console.log(`✅ Categoría '${slug}' cargada:`, category);
+        console.log(`✅ Categoría '${slug}' cargada desde API:`, category);
+        this.isContentReady = true;
         return category;
       } catch (error) {
         console.error(`❌ Error al obtener categoría '${slug}':`, error.message);
-        this.error = error.message;
+        this.error = 'Ocurrió un error al cargar la categoría.';
+        this.isContentReady = false;
         return null;
       } finally {
         this.loading = false;
@@ -80,23 +98,36 @@ export const useStore = defineStore('mainStore', {
     },
 
     async fetchProductsByCategory(categorySlug, page = 1, forceRefresh = false) {
-      try {
-        const category = await this.fetchCategoryBySlug(categorySlug);
-        if (!category) throw new Error(`No se encontró la categoría '${categorySlug}'`);
+      this.loading = true;
+      this.error = null;
+      this.isContentReady = false;
 
-        this.loading = true;
-        this.currentPage = parseInt(page) || 1;
-        const cacheKey = `products_${categorySlug}_page_${this.currentPage}`;
+      if (this.currentCategorySlug !== categorySlug || this.currentPage !== page) {
+        this.products = [];
+        this.currentCategorySlug = categorySlug;
+        this.currentProductSlug = null;
+      }
+
+      this.currentPage = parseInt(page) || 1;
+      const cacheKey = `products_${categorySlug}_page_${this.currentPage}`;
+
+      try {
+        const category = await this.fetchCategoryBySlug(categorySlug, forceRefresh);
+        if (!category) {
+          console.warn(`⚠️ No se cargarán productos porque la categoría '${categorySlug}' no existe`);
+          this.isContentReady = false;
+          return { products: [], total: 0, totalPages: 0, currentPage: this.currentPage };
+        }
 
         const sessionCached = sessionStorage.getItem(cacheKey);
         if (!forceRefresh && sessionCached) {
           const parsed = JSON.parse(sessionCached);
           if (Array.isArray(parsed) && parsed.length) {
-            console.log(`⚡ Productos de '${categorySlug}' página ${this.currentPage} desde sessionStorage`);
+            console.log(`⚡ Cargando desde sessionStorage para ${cacheKey}`);
             this.products = parsed;
             this.totalProducts = parseInt(sessionStorage.getItem(`total_${categorySlug}`) || 0);
             this.totalPages = parseInt(sessionStorage.getItem(`totalPages_${categorySlug}`) || 0);
-            this.loading = false;
+            this.isContentReady = true;
             return {
               products: parsed,
               total: this.totalProducts,
@@ -108,15 +139,16 @@ export const useStore = defineStore('mainStore', {
 
         const db = await dbPromise;
         const indexedCached = await db.get('productsByCategory', cacheKey);
-        if (!forceRefresh && indexedCached) {
-          console.log(`⚡ Productos de '${categorySlug}' página ${this.currentPage} desde IndexedDB`);
+        if (!forceRefresh && indexedCached && indexedCached.products.length) {
+          console.log(`⚡ Cargando desde IndexedDB para ${cacheKey}`);
           this.products = indexedCached.products;
           this.totalProducts = indexedCached.total;
           this.totalPages = indexedCached.totalPages;
+          this.currentPage = indexedCached.currentPage || 1;
           sessionStorage.setItem(cacheKey, JSON.stringify(indexedCached.products));
           sessionStorage.setItem(`total_${categorySlug}`, indexedCached.total.toString());
           sessionStorage.setItem(`totalPages_${categorySlug}`, indexedCached.totalPages.toString());
-          this.loading = false;
+          this.isContentReady = true;
           return {
             products: indexedCached.products,
             total: indexedCached.total,
@@ -125,9 +157,10 @@ export const useStore = defineStore('mainStore', {
           };
         }
 
+        console.log(`🌐 Cargando desde API para '${categorySlug}', página ${this.currentPage}`);
         const params = {
           category: category.id.toString(),
-          per_page: '20',
+          per_page: '15',
           page: this.currentPage.toString(),
           consumer_key: API_KEY,
           consumer_secret: API_SECRET,
@@ -135,7 +168,7 @@ export const useStore = defineStore('mainStore', {
           order: 'desc',
         };
 
-        const response = await axios.get(`${API_URL}/products`, { params });
+        const response = await axios.get(`${WC_API_URL}/products`, { params });
         const total = parseInt(response.headers['x-wp-total'] || 0);
         const totalPages = parseInt(response.headers['x-wp-totalpages'] || 0);
 
@@ -143,8 +176,17 @@ export const useStore = defineStore('mainStore', {
           id: product.id,
           name: product.name,
           price: product.price,
-          image: product.images?.[0]?.src || '/placeholder.jpg',
-          thumbnail: product.images?.[0]?.thumbnail || product.images?.[0]?.src || '/placeholder.jpg',
+          regular_price: product.regular_price,
+          sale_price: product.sale_price,
+          stock_quantity: product.stock_quantity,
+          stock_status: product.stock_status,
+          manage_stock: product.manage_stock,
+          sku: product.sku || 'N/A',
+          images: product.images?.map(img => ({
+            src: img.src || '/placeholder.jpg',
+            thumbnail: img.thumbnail || img.src || '/placeholder.jpg',
+            alt: img.alt || product.name
+          })) || [{ src: '/placeholder.jpg', thumbnail: '/placeholder.jpg', alt: product.name }],
           slug: product.slug || `producto-${product.id}`,
           description: product.description,
           categories: product.categories?.map(cat => cat.slug) || [],
@@ -155,20 +197,35 @@ export const useStore = defineStore('mainStore', {
           type: 'product',
         }));
 
-        const tx = db.transaction(['products', 'productsByCategory'], 'readwrite');
-        await Promise.all(newProducts.map(product => tx.objectStore('products').put(product)));
-        await tx.objectStore('productsByCategory').put({ products: newProducts, total, totalPages, cachedAt: Date.now() }, cacheKey);
-        await tx.done;
+        if (newProducts.length > 0) {
+          const tx = db.transaction(['products', 'productsByCategory'], 'readwrite');
+          await Promise.all(newProducts.map(product => tx.objectStore('products').put(product)));
+          await tx.objectStore('productsByCategory').put({
+            products: newProducts,
+            total,
+            totalPages,
+            currentPage: this.currentPage,
+            cachedAt: Date.now(),
+          }, cacheKey);
+          await tx.done;
 
-        sessionStorage.setItem(cacheKey, JSON.stringify(newProducts));
-        sessionStorage.setItem(`total_${categorySlug}`, total.toString());
-        sessionStorage.setItem(`totalPages_${categorySlug}`, totalPages.toString());
+          sessionStorage.setItem(cacheKey, JSON.stringify(newProducts));
+          sessionStorage.setItem(`total_${categorySlug}`, total.toString());
+          sessionStorage.setItem(`totalPages_${categorySlug}`, totalPages.toString());
 
-        this.products = newProducts;
-        this.totalProducts = total;
-        this.totalPages = totalPages;
+          this.products = newProducts;
+          this.totalProducts = total;
+          this.totalPages = totalPages;
+          this.isContentReady = true;
+          console.log(`✅ Página ${this.currentPage} cargada desde API con ${newProducts.length} productos`);
+        } else {
+          this.products = [];
+          this.totalProducts = 0;
+          this.totalPages = 0;
+          this.isContentReady = false;
+          console.log(`⚠️ No se encontraron productos para '${categorySlug}' en la página ${this.currentPage}`);
+        }
 
-        console.log(`✅ Página ${this.currentPage} cargada con ${newProducts.length} productos`);
         return {
           products: newProducts,
           total,
@@ -176,14 +233,14 @@ export const useStore = defineStore('mainStore', {
           currentPage: this.currentPage,
         };
       } catch (error) {
-        console.error('❌ Error fetching products:', error);
-        this.error = error.message;
+        console.error('❌ Error al cargar productos:', error.message);
+        this.error = 'Ocurrió un error al cargar los productos.';
+        this.isContentReady = false;
         return {
           products: [],
           total: 0,
           totalPages: 0,
           currentPage: this.currentPage,
-          error: error.message,
         };
       } finally {
         this.loading = false;
@@ -198,30 +255,47 @@ export const useStore = defineStore('mainStore', {
       if (!forceRefresh && cached) {
         const parsed = JSON.parse(cached);
         if (parsed && parsed.slug === slug) {
-          console.log(`⚡ Producto '${slug}' desde localStorage`);
-          if (!this.products.some(p => p.slug === slug)) {
-            this.products = this.products.concat(parsed);
-          }
+          console.log(`⚡ Producto '${slug}' desde localStorage`, parsed);
+          this.products = [parsed];
+          this.currentProductSlug = slug;
+          this.currentCategorySlug = null;
+          this.isContentReady = true;
           return parsed;
         }
       }
 
       this.loading = true;
+      this.isContentReady = false;
       try {
-        const response = await axios.get(`${API_URL}/products`, {
+        const response = await axios.get(`${WC_API_URL}/products`, {
           params: { consumer_key: API_KEY, consumer_secret: API_SECRET, slug, per_page: 1 },
         });
 
         const data = response.data || [];
         if (!Array.isArray(data) || !data.length) {
-          throw new Error(`No se encontró el producto '${slug}' en la API`);
+          console.warn(`⚠️ Producto '${slug}' no encontrado en la API`);
+          this.error = `El producto '${slug}' no existe.`;
+          this.isContentReady = false;
+          return null;
         }
+
+        console.log(`📡 Datos crudos de la API para '${slug}':`, data[0]);
 
         const product = {
           id: data[0].id,
           name: data[0].name,
           price: data[0].price,
-          image: data[0].images?.[0]?.src || '/placeholder.jpg',
+          regular_price: data[0].regular_price,
+          sale_price: data[0].sale_price,
+          stock_quantity: data[0].stock_quantity,
+          stock_status: data[0].stock_status,
+          manage_stock: data[0].manage_stock,
+          sku: data[0].sku || 'N/A',
+          images: data[0].images?.map(img => ({
+            src: img.src || '/placeholder.jpg',
+            thumbnail: img.thumbnail || img.src || '/placeholder.jpg',
+            alt: img.alt || data[0].name
+          })) || [{ src: '/placeholder.jpg', thumbnail: '/placeholder.jpg', alt: data[0].name }],
           slug: data[0].slug || `producto-${data[0].id}`,
           description: data[0].description,
           categories: data[0].categories?.map(cat => cat.slug) || [],
@@ -230,106 +304,119 @@ export const useStore = defineStore('mainStore', {
             options: attr.options || [],
           })) || [],
           type: 'product',
+          yoast_head_json: data[0].yoast_head_json || {},
         };
 
         const db = await dbPromise;
         await db.put('products', product);
-
         localStorage.setItem(cacheKey, JSON.stringify(product));
-        if (!this.products.some(p => p.slug === slug)) {
-          this.products = this.products.concat(product);
-        }
-        console.log(`✅ Producto '${slug}' cargado:`, product);
+        this.products = [product];
+        this.currentProductSlug = slug;
+        this.currentCategorySlug = null;
+        this.isContentReady = true;
+        console.log(`✅ Producto '${slug}' cargado desde API:`, product);
         return product;
       } catch (error) {
         console.error(`❌ Error al obtener producto '${slug}':`, error.message);
-        this.error = error.message;
+        this.error = 'Ocurrió un error al cargar el producto.';
+        this.isContentReady = false;
         return null;
       } finally {
         this.loading = false;
       }
     },
 
-    async preloadInitialData(forceRefresh = false) {
-      const cacheKeyCategories = 'categories_minimal';
-      const cacheKeyProducts = 'initial_products';
-      const cachedCategories = localStorage.getItem(cacheKeyCategories);
-      const db = await dbPromise;
-      const cachedProducts = await db.get('productsByCategory', cacheKeyProducts);
+    async preloadInitialData(categorySlug = null, forceRefresh = false) {
+      if (!categorySlug) {
+        const cacheKeyCategories = 'categories_minimal';
+        const cacheKeyProducts = 'initial_products';
+        const cachedCategories = localStorage.getItem(cacheKeyCategories);
+        const db = await dbPromise;
+        const cachedProducts = await db.get('productsByCategory', cacheKeyProducts);
 
-      // Si hay caché y no se fuerza la recarga, usar datos locales
-      if (!forceRefresh && cachedCategories && cachedProducts) {
-        const parsedCategories = JSON.parse(cachedCategories);
-        if (Array.isArray(parsedCategories) && parsedCategories.length) {
-          this.categories = parsedCategories;
-          console.log(`⚡ ${parsedCategories.length} categorías mínimas desde localStorage`);
+        if (!forceRefresh && cachedCategories && cachedProducts) {
+          const parsedCategories = JSON.parse(cachedCategories);
+          if (Array.isArray(parsedCategories) && parsedCategories.length) {
+            this.categories = parsedCategories;
+            console.log(`⚡ ${parsedCategories.length} categorías mínimas desde localStorage`);
+          }
+          if (cachedProducts && cachedProducts.products.length) {
+            this.products = cachedProducts.products;
+            this.currentCategorySlug = null;
+            this.currentProductSlug = null;
+            console.log(`⚡ ${cachedProducts.products.length} productos iniciales desde IndexedDB`);
+            this.isPreloaded = true;
+            this.isContentReady = true;
+            return;
+          }
         }
-        if (cachedProducts && cachedProducts.products.length) {
-          this.products = cachedProducts.products;
-          console.log(`⚡ ${cachedProducts.products.length} productos iniciales desde IndexedDB`);
-        }
-        if (this.categories.length && this.products.length) {
+
+        this.loading = true;
+        this.isContentReady = false;
+        try {
+          const categoryResponse = await axios.get(`${WC_API_URL}/products/categories`, {
+            params: { consumer_key: API_KEY, consumer_secret: API_SECRET, per_page: 20, hide_empty: true },
+          });
+
+          const minimalCategories = (categoryResponse.data || []).map(category => ({
+            id: category.id,
+            name: category.name,
+            slug: category.slug,
+          }));
+          this.categories = minimalCategories;
+          localStorage.setItem(cacheKeyCategories, JSON.stringify(minimalCategories));
+          console.log(`✅ ${minimalCategories.length} categorías mínimas cargadas desde API`);
+
+          const productResponse = await axios.get(`${WC_API_URL}/products`, {
+            params: { consumer_key: API_KEY, consumer_secret: API_SECRET, per_page: 5, orderby: 'date', order: 'desc' },
+          });
+
+          const initialProducts = (productResponse.data || []).map(product => ({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            regular_price: product.regular_price,
+            sale_price: product.sale_price,
+            stock_quantity: product.stock_quantity,
+            stock_status: product.stock_status,
+            manage_stock: product.manage_stock,
+            sku: product.sku || 'N/A',
+            images: product.images?.map(img => ({
+              src: img.src || '/placeholder.jpg',
+              thumbnail: img.thumbnail || img.src || '/placeholder.jpg',
+              alt: img.alt || product.name
+            })) || [{ src: '/placeholder.jpg', thumbnail: '/placeholder.jpg', alt: product.name }],
+            slug: product.slug || `producto-${product.id}`,
+            description: product.description,
+            categories: product.categories?.map(cat => cat.slug) || [],
+            attributes: product.attributes?.map(attr => ({
+              name: attr.name,
+              options: attr.options || [],
+            })) || [],
+            type: 'product',
+          }));
+
+          const tx = db.transaction(['products', 'productsByCategory'], 'readwrite');
+          await Promise.all(initialProducts.map(product => tx.objectStore('products').put(product)));
+          await tx.objectStore('productsByCategory').put({ products: initialProducts, cachedAt: Date.now() }, cacheKeyProducts);
+          await tx.done;
+
+          this.products = initialProducts;
+          this.currentCategorySlug = null;
+          this.currentProductSlug = null;
           this.isPreloaded = true;
-          return;
+          this.isContentReady = true;
+          console.log(`✅ ${initialProducts.length} productos iniciales precargados desde API`);
+        } catch (error) {
+          console.error('❌ Error al precargar datos iniciales:', error);
+          this.error = 'Ocurrió un error al precargar datos iniciales.';
+          this.isContentReady = false;
+        } finally {
+          this.loading = false;
         }
-      }
-
-      this.loading = true;
-      try {
-        // Cargar solo categorías principales (per_page reducido)
-        const categoryResponse = await axios.get(`${API_URL}/products/categories`, {
-          params: { consumer_key: API_KEY, consumer_secret: API_SECRET, per_page: 20, hide_empty: true },
-        });
-
-        const categoryData = categoryResponse.data || [];
-        if (!Array.isArray(categoryData)) throw new Error("Formato inválido de categorías");
-
-        const minimalCategories = categoryData.map(category => ({
-          id: category.id,
-          name: category.name,
-          slug: category.slug,
-        }));
-
-        this.categories = minimalCategories;
-        localStorage.setItem(cacheKeyCategories, JSON.stringify(minimalCategories));
-        console.log(`✅ ${minimalCategories.length} categorías mínimas cargadas`);
-
-        // Cargar pocos productos iniciales
-        const productResponse = await axios.get(`${API_URL}/products`, {
-          params: { consumer_key: API_KEY, consumer_secret: API_SECRET, per_page: 5, orderby: 'date', order: 'desc' },
-        });
-
-        const productData = productResponse.data || [];
-        if (!Array.isArray(productData)) throw new Error("Formato inválido de productos");
-
-        const initialProducts = productData.map(product => ({
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          image: product.images?.[0]?.src || '/placeholder.jpg',
-          slug: product.slug || `producto-${product.id}`,
-          description: product.description,
-          categories: product.categories?.map(cat => cat.slug) || [],
-          attributes: product.attributes?.map(attr => ({
-            name: attr.name,
-            options: attr.options || [],
-          })) || [],
-          type: 'product',
-        }));
-
-        const tx = db.transaction(['products', 'productsByCategory'], 'readwrite');
-        await Promise.all(initialProducts.map(product => tx.objectStore('products').put(product)));
-        await tx.objectStore('productsByCategory').put({ products: initialProducts, cachedAt: Date.now() }, cacheKeyProducts);
-        await tx.done;
-
-        this.products = initialProducts;
-        console.log(`✅ ${initialProducts.length} productos iniciales precargados`);
-        this.isPreloaded = true;
-      } catch (error) {
-        console.error("❌ Error al precargar datos iniciales:", error);
-        this.error = error.message;
-      } finally {
-        this.loading = false;
+      } else {
+        console.log(`🟢 Precargando datos para '${categorySlug}'...`);
+        await this.fetchProductsByCategory(categorySlug, 1, forceRefresh);
       }
     },
 
@@ -340,22 +427,26 @@ export const useStore = defineStore('mainStore', {
       if (!forceRefresh && cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length) {
-          console.log("⚡ Categorías mínimas desde localStorage");
+          console.log(`⚡ ${parsed.length} categorías mínimas desde localStorage`);
           this.categories = parsed;
+          this.isContentReady = true;
           return parsed;
         }
       }
 
       this.loading = true;
+      this.isContentReady = false;
       try {
-        const response = await axios.get(`${API_URL}/products/categories`, {
-          params: { consumer_key: API_KEY, consumer_secret: API_SECRET, per_page: 100, hide_empty: true },
+        const response = await axios.get(`${WC_API_URL}/products/categories`, {
+          params: {
+            consumer_key: API_KEY,
+            consumer_secret: API_SECRET,
+            per_page: 100,
+            hide_empty: true,
+          },
         });
 
-        const data = response.data || [];
-        if (!Array.isArray(data)) throw new Error("Formato inválido");
-
-        const minimalCategories = data.map(category => ({
+        const minimalCategories = (response.data || []).map(category => ({
           id: category.id,
           name: category.name,
           slug: category.slug,
@@ -363,88 +454,79 @@ export const useStore = defineStore('mainStore', {
 
         this.categories = minimalCategories;
         localStorage.setItem(cacheKey, JSON.stringify(minimalCategories));
-        console.log(`✅ ${minimalCategories.length} categorías mínimas cargadas`);
+        this.isContentReady = true;
+        console.log(`✅ ${minimalCategories.length} categorías mínimas cargadas desde API`);
         return minimalCategories;
       } catch (error) {
-        console.error("❌ Error al obtener categorías mínimas:", error);
-        this.error = error.message;
-        this.categories = [];
-        throw error;
+        console.error('❌ Error al cargar categorías mínimas:', error.message);
+        this.error = 'Ocurrió un error al cargar las categorías.';
+        this.isContentReady = false;
+        return [];
       } finally {
         this.loading = false;
       }
     },
 
-    async fetchRelatedProducts(categorySlug, forceRefresh = false) {
-      console.log(`🟢 Intentando cargar productos relacionados para '${categorySlug}'...`);
-      const cacheKey = `related_${categorySlug}`;
-      const cached = localStorage.getItem(cacheKey);
-
-      if (!forceRefresh && cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length) {
-          console.log(`⚡ Productos relacionados de '${categorySlug}' desde localStorage:`, parsed.length);
-          return parsed;
-        }
-      }
-
-      const category = await this.fetchCategoryBySlug(categorySlug, forceRefresh);
-      if (!category) {
-        console.error(`❌ No se pudo cargar productos relacionados porque la categoría '${categorySlug}' no existe`);
-        return [];
-      }
-
-      this.loading = true;
+    async fetchRelatedProducts(categorySlug) {
       try {
-        const response = await axios.get(`${API_URL}/products`, {
-          params: { consumer_key: API_KEY, consumer_secret: API_SECRET, category: category.id, per_page: 10 },
+        const response = await axios.get(`${WC_API_URL}/products`, {
+          params: {
+            category: this.categories.find(cat => cat.slug === categorySlug)?.id,
+            per_page: 4,
+            consumer_key: API_KEY,
+            consumer_secret: API_SECRET,
+          },
         });
 
-        const data = response.data || [];
-        if (!Array.isArray(data)) throw new Error("Formato inválido");
-
-        const products = data.map(product => ({
+        return response.data.map(product => ({
           id: product.id,
           name: product.name,
           price: product.price,
-          image: product.images?.[0]?.src || '/placeholder.jpg',
+          regular_price: product.regular_price,
+          sale_price: product.sale_price,
+          images: product.images?.map(img => ({
+            src: img.src || '/placeholder.jpg',
+            thumbnail: img.thumbnail || img.src || '/placeholder.jpg',
+            alt: img.alt || product.name
+          })) || [{ src: '/placeholder.jpg', thumbnail: '/placeholder.jpg', alt: product.name }],
           slug: product.slug || `producto-${product.id}`,
-          description: product.description,
-          categories: product.categories?.map(cat => cat.slug) || [],
-          attributes: product.attributes?.map(attr => ({
-            name: attr.name,
-            options: attr.options || [],
-          })) || [],
-          type: 'product',
         }));
-
-        const db = await dbPromise;
-        await Promise.all(products.map(product => db.put('products', product)));
-
-        localStorage.setItem(cacheKey, JSON.stringify(products));
-        console.log(`✅ ${products.length} productos relacionados cargados para '${categorySlug}':`, products);
-        return products;
       } catch (error) {
-        console.error(`❌ Error al obtener productos relacionados de '${categorySlug}':`, error.message);
-        this.error = error.message;
+        console.error('Error fetching related products:', error);
         return [];
-      } finally {
-        this.loading = false;
       }
     },
 
-    getProductsByCategory(categorySlug) {
-      return this.products.filter(p => p.categories.includes(categorySlug));
+    async clearCache() {
+      const db = await dbPromise;
+      await db.clear('products');
+      await db.clear('productsByCategory');
+      localStorage.clear();
+      sessionStorage.clear();
+      this.clearState();
+      console.log('🧹 Caché y estado limpiados');
     },
 
     clearState() {
       this.products = [];
+      this.currentCategorySlug = null;
+      this.currentProductSlug = null;
       this.loading = false;
       this.error = null;
       this.currentPage = 1;
       this.totalPages = 0;
       this.totalProducts = 0;
-      console.log('🧹 Estado del store limpiado');
+      this.isContentReady = false;
+      console.log('🧹 Estado del store limpiado (categorías preservadas)');
+    },
+  },
+
+  getters: {
+    getProductsByCategory: (state) => (categorySlug) => {
+      return state.products.filter(p => p.categories.includes(categorySlug));
+    },
+    getYoastMetaForCategory: (state) => (slug) => {
+      return state.yoastMeta[slug] || {};
     },
   },
 });

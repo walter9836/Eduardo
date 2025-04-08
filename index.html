@@ -3,29 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Edu</title>
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
 
-  <!-- Favicon optimizado con preload -->
-  <link rel="preload" href="logo-hiraoka.webp" as="image" type="image/webp">
-  <link rel="icon" href="logo-hiraoka.webp" type="image/webp">
+  <!-- Favicon optimizado con preload y ruta absoluta -->
+  <link rel="preload" href="/logo-hiraoka.webp" as="image" type="image/webp">
+  <link rel="icon" href="/logo-hiraoka.webp" type="image/webp" sizes="any">
 
-  <!-- Mejoras en carga de fuentes -->
+  <!-- Preconexión a Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" importance="high">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin importance="high">
+  <!-- Carga asíncrona de fuentes (ejemplo con una fuente específica) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" media="print" onload="this.onload=null;this.media='all'">
 
-  <!-- Preload de estilos críticos (Tailwind CSS) -->
-  <link rel="preload" href="/src/assets/styles.css/" as="style">
+  <!-- Metadatos básicos para SEO y rendimiento -->
+  <meta name="description" content="Tienda en línea optimizada para una experiencia rápida y fluida">
+  <meta name="robots" content="index, follow">
 
-  <!-- Carga diferida de estilos secundarios (Tailwind) -->
-  <link rel="stylesheet" href="/src/assets/styles.css" media="print" onload="this.onload=null;this.media='all'">
-
+  <!-- Preload de scripts críticos (opcional, ajustado por Vite) -->
 </head>
 <body class="bg-gray-100">
-
   <div id="app"></div>
 
-  <!-- Carga optimizada de Vue -->
+  <!-- Script principal cargado con module y defer -->
   <script type="module" src="/src/main.js" defer></script>
-
+  
 </body>
 </html>

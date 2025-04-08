@@ -1,137 +1,129 @@
 <template>
   <div class="app">
-    <!-- Header siempre visible -->
     <AppHeader />
-
-    <!-- Contenido principal con altura mínima inicial -->
-    <div ref="contentWrapper" class="content-wrapper">
-      <router-view v-slot="{ Component }">
-        <keep-alive include="CategoriaView,HomePage">
-          <component 
-            :is="Component"
-            :key="$route.fullPath"
-            class="page-content"
-          />
-        </keep-alive>
+    
+    <!-- Contenido principal con skeleton mientras carga -->
+    <main class="content-wrapper">
+      <div v-if="isLoading" class="skeleton-wrapper animate-pulse">
+        <div class="h-64 bg-gray-200 rounded-lg mx-4"></div>
+      </div>
+      <router-view v-else v-slot="{ Component }">
+        <transition name="page" mode="out-in">
+          <keep-alive include="CategoriaView,HomePage">
+            <component 
+              :is="Component"
+              :key="$route.fullPath"
+              class="page-content"
+              @hook:mounted="onContentMounted"
+            />
+          </keep-alive>
+        </transition>
       </router-view>
-    </div>
+    </main>
 
-    <!-- Footer con margen dinámico -->
-    <Footer ref="footer" :style="{ marginTop: footerMarginTop + 'px' }" />
-
-    <!-- Mensaje de error -->
-    <div v-if="error" class="error-container">
-      <p class="text-red-500">
-        Error al cargar la aplicación. 
-        <button @click="retryLoading" class="underline">Reintentar</button>
-      </p>
-    </div>
+    <Footer />
 
     <CookieConsent v-if="!error" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUpdated, watch, onUnmounted, nextTick } from 'vue';
+import { ref, onMounted, watch, onUnmounted } from 'vue';
 import { useStore } from '@/store/store';
 import { useCartStore } from '@/store/cartStore';
-import { useRoute } from 'vue-router'; // Añadir esta importación
+import { useRoute } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
 import Footer from './components/Footer.vue';
 import CookieConsent from './components/CookieConsent.vue';
 
 const store = useStore();
 const cartStore = useCartStore();
-const route = useRoute(); // Añadir esta línea
+const route = useRoute();
 const error = ref(false);
-const contentWrapper = ref(null); // Referencia al contenedor del contenido
-const pageContent = ref(null);   // Referencia al router-view
-const footer = ref(null);        // Referencia al footer
-const footerMarginTop = ref(0);  // Margen dinámico para el footer
+const isLoading = ref(true);
 
-// Función para calcular y ajustar la posición del footer
-const calculateFooterPosition = () => {
-  if (contentWrapper.value && footer.value) {
-    const windowHeight = window.innerHeight;
-    const contentHeight = contentWrapper.value.offsetHeight;
-    const footerHeight = footer.value.offsetHeight;
-
-    if (contentHeight < windowHeight) {
-      footerMarginTop.value = windowHeight - contentHeight - footerHeight;
-    } else {
-      footerMarginTop.value = 0;
-    }
-  }
-};
-
-// Ejecutar al montar el componente
 onMounted(async () => {
   try {
-    // Cargar datos asíncronos
-    await store.fetchCategoriesMinimal(false); // Usar caché si está disponible
-    await cartStore.loadCart();
-
-    // Ajustar la posición del footer después de cargar datos
-    calculateFooterPosition();
-
-    // Escuchar redimensiones de la ventana
-    window.addEventListener('resize', calculateFooterPosition);
+    await Promise.all([
+      store.fetchCategoriesMinimal(false),
+      cartStore.loadCart(),
+    ]);
   } catch (err) {
     error.value = true;
+  } finally {
+    isLoading.value = false;
   }
 });
 
-// Ajustar el footer cuando el contenido cambie (por ejemplo, al navegar)
-onUpdated(() => {
-  calculateFooterPosition();
-});
-
-// Observar cambios en la altura del contenido o footer
-watch([() => contentWrapper.value?.offsetHeight, () => footer.value?.offsetHeight], () => {
-  calculateFooterPosition();
-});
-
-// Agregar watch para la ruta
 watch(
   () => route.fullPath,
-  () => {
-    nextTick(() => {
-      calculateFooterPosition();
-    });
+  async () => {
+    isLoading.value = true;
+    try {
+      // Aquí podrías añadir lógica específica de la ruta si es necesario
+    } catch (err) {
+      error.value = true;
+    } finally {
+      isLoading.value = false;
+    }
   }
 );
 
-// Limpiar el evento al desmontar el componente
-onUnmounted(() => {
-  window.removeEventListener('resize', calculateFooterPosition);
-});
+const onContentMounted = () => {
+  isLoading.value = false;
+};
 
-// Reintentar carga si hay error
 const retryLoading = async () => {
   error.value = false;
+  isLoading.value = true;
   try {
-    await store.fetchCategoriesMinimal(true); // Forzar refresco
-    await cartStore.loadCart();
-    calculateFooterPosition();
+    await Promise.all([
+      store.fetchCategoriesMinimal(true),
+      cartStore.loadCart(),
+    ]);
   } catch (err) {
     error.value = true;
+  } finally {
+    isLoading.value = false;
   }
 };
+
+onUnmounted(() => {
+  window.removeEventListener('resize', () => {});
+});
 </script>
 
-<style>
-/* Agregar estilos para transiciones */
+<style scoped>
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.content-wrapper {
+  flex: 1 0 auto;
+  min-height: calc(100vh - 260px); /* Ajusta según header + footer */
+}
+
+.skeleton-wrapper {
+  min-height: calc(100vh - 260px); /* Igual que content-wrapper */
+}
+
 .page-content {
-  transition: opacity 0.3s ease;
+  min-height: inherit;
 }
 
 .page-enter-active,
 .page-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 
 .page-enter-from,
 .page-leave-to {
   opacity: 0;
+}
+
+footer {
+  flex-shrink: 0;
 }
 </style>

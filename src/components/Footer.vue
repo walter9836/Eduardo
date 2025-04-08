@@ -1,12 +1,10 @@
 <template>
-  <footer class="bg-gray-800 text-white py-6 mt-auto">
+  <footer class="bg-gray-800 text-white py-6">
     <div class="container mx-auto px-4">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <!-- Sección de Suscripción al boletín -->
         <div>
           <h4 class="font-semibold text-lg mb-4">Suscríbete al boletín</h4>
           <form @submit.prevent="subscribe" novalidate>
-            <!-- Input de correo electrónico -->
             <input 
               type="email" 
               v-model="email" 
@@ -15,38 +13,28 @@
               aria-label="Introduce tu correo electrónico"
               class="w-full p-2 mb-4 border border-gray-300 rounded-md focus:outline-none"
             />
-            
-            <!-- Mensaje de error si el correo no es válido -->
             <p v-if="emailError" class="text-red-500 text-sm mt-2 transition-all duration-300 ease-in-out opacity-100">
               {{ emailError }}
             </p>
-
-            <!-- Mensaje de éxito o error -->
             <div v-if="statusMessage" :class="['status-message', statusClass]" class="mt-6 text-center">
               <p>{{ statusMessage }}</p>
             </div>
-
-            <!-- Botón de suscripción -->
             <button 
               type="submit" 
               :disabled="isSubmitting"
               class="w-full bg-orange-500 text-white py-2 rounded-md hover:bg-orange-600 focus:outline-none flex items-center justify-center min-h-[50px]">
-              <!-- Spinner mientras se carga -->
               <span v-if="isSubmitting" class="flex items-center justify-center">
                 <svg class="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v4m0 0l-2-2m2 2l2-2m8 4a9 9 0 11-9-9 9 9 0 0110 9z" />
                 </svg>
                 Cargando...
               </span>
-              <!-- Texto cuando no está cargando -->
               <span v-else>
                 <i class="fas fa-envelope mr-2"></i> Suscribirse
               </span>
             </button>
           </form>
         </div>
-
-        <!-- Sección de Información -->
         <div>
           <h4 class="font-semibold text-lg mb-4">Información</h4>
           <ul>
@@ -56,8 +44,6 @@
             <li class="mb-2"><a href="/terms" class="hover:underline">Términos y Condiciones</a></li>
           </ul>
         </div>
-
-        <!-- Sección de Soporte -->
         <div>
           <h4 class="font-semibold text-lg mb-4">Soporte</h4>
           <ul>
@@ -66,8 +52,6 @@
             <li class="mb-2"><a href="/support" class="hover:underline">Soporte Técnico</a></li>
           </ul>
         </div>
-
-        <!-- Sección de Redes Sociales -->
         <div>
           <h4 class="font-semibold text-lg mb-4">Síguenos</h4>
           <div class="flex space-x-4">
@@ -86,8 +70,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Pie de página con derechos de autor -->
       <div class="text-center mt-8">
         <p>© 2025 Mi Tienda. Todos los derechos reservados.</p>
       </div>
@@ -113,42 +95,38 @@ const validateEmail = () => {
 const subscribe = async () => {
   if (email.value && !emailError.value) {
     isSubmitting.value = true;
-
     try {
-      const response = await axios.post('https://dev-edu123t35.pantheonsite.io/wp-json/sb/v1/suscribir', {
+      const response = await axios.post('https://dev-edu123t35.pantheonsite.io/wp-json/resend/v1/subscribe', {
         email: email.value,
       });
-
-      if (response.data === 'Este correo ya está registrado.') {
-        statusMessage.value = 'Este correo ya está registrado. ¡Gracias!';
-        statusClass.value = 'text-yellow-500';
-      } else {
-        statusMessage.value = '¡Te has suscrito correctamente!';
-        statusClass.value = 'text-green-500';
-      }
-
+      statusMessage.value = response.data.message; // Mensaje del plugin: "¡Gracias por suscribirte!" o "Ya estás suscrito."
+      statusClass.value = response.data.message.includes('Ya estás suscrito') ? 'text-yellow-500' : 'text-green-500';
       email.value = '';
     } catch (error) {
-      statusMessage.value = 'Hubo un error al suscribirse. Intenta nuevamente.';
+      const errorMsg = error.response?.data?.message || 'Hubo un error al suscribirse. Intenta nuevamente.';
+      statusMessage.value = errorMsg;
       statusClass.value = 'text-red-500';
       console.error(error);
     } finally {
       isSubmitting.value = false;
     }
   } else {
-    statusMessage.value = 'Correo electrónico inválido.';
+    statusMessage.value = 'Por favor, introduce un correo válido.';
     statusClass.value = 'text-red-500';
   }
 };
 </script>
 
 <style scoped>
-/* Estilos para mantener el footer pegado al fondo sin transiciones */
 footer {
-  margin-top: auto; /* Empuja el footer hacia abajo si hay espacio */
+  flex-shrink: 0;
+  min-height: 200px; /* Altura mínima para predecibilidad */
 }
 
-/* Estilos para el contenedor de error */
+.status-message {
+  transition: opacity 0.3s ease-in-out;
+}
+
 .error-container {
   display: flex;
   flex-direction: column;
