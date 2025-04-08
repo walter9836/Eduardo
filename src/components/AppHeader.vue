@@ -74,9 +74,7 @@
     </div>
 
     <div class="flex items-center ml-auto space-x-4">
-      <button @click="clearCache" class="bg-gray-500 text-white text-xs px-2 py-1 rounded hover:bg-gray-600 transition">
-        Limpiar Caché
-      </button>
+  
       <div class="relative">
         <button @click="toggleCategories" class="group flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 transition-all duration-300 text-gray-700 text-sm">
           <span class="font-medium text-xs md:text-sm text-gray-800">Categorías</span>
