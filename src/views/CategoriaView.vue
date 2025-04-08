@@ -207,7 +207,3 @@ onMounted(async () => {
 
 // Eliminar watch redundante, ya que useHead es reactivo
 </script>
-
-<style scoped>
-/* Estilos */
-</style>
