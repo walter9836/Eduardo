@@ -74,7 +74,6 @@
     </div>
 
     <div class="flex items-center ml-auto space-x-4">
-  
       <div class="relative">
         <button @click="toggleCategories" class="group flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 transition-all duration-300 text-gray-700 text-sm">
           <span class="font-medium text-xs md:text-sm text-gray-800">Categorías</span>
@@ -82,20 +81,18 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        <transition name="fade">
-          <div v-show="categoriesOpen" class="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
-            <div class="py-2">
-              <router-link to="/categorias" class="block text-left px-3 py-2 text-xs md:text-sm font-medium text-gray-700 hover:bg-orange-100 transition-all duration-200 active:bg-orange-200" @click="closeCategories">
-                Ver todas las categorías
+        <div v-show="categoriesOpen" class="categories-menu absolute right-0 top-full mt-2 w-64 rounded-xl shadow-lg border border-gray-200 z-[10000] overflow-hidden">
+          <div class="py-2">
+            <router-link to="/categorias" class="block text-left px-3 py-2 text-xs md:text-sm font-medium text-gray-700 hover:bg-orange-100 transition-all duration-200 active:bg-orange-200" @click="closeCategories">
+              Ver todas las categorías
+            </router-link>
+            <div class="grid gap-1 max-h-[50vh] overflow-y-auto px-3">
+              <router-link v-for="category in store.categories" :key="category.id" :to="`/categoria/${category.slug}`" class="flex items-center px-3 py-2 hover:bg-orange-50 text-gray-700 transition-all duration-200 group rounded-md active:bg-orange-200" @click="closeCategories">
+                <span class="text-xs md:text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors">{{ category.name }}</span>
               </router-link>
-              <div class="grid gap-1 max-h-[50vh] overflow-y-auto px-3">
-                <router-link v-for="category in store.categories" :key="category.id" :to="`/categoria/${category.slug}`" class="flex items-center px-3 py-2 hover:bg-orange-50 text-gray-700 transition-all duration-200 group rounded-md active:bg-orange-200" @click="closeCategories">
-                  <span class="text-xs md:text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors">{{ category.name }}</span>
-                </router-link>
-              </div>
             </div>
           </div>
-        </transition>
+        </div>
       </div>
       <router-link to="/carrito" class="relative flex items-center text-gray-700 hover:text-orange-500 transition">
         <img src="/carritodesk.svg" alt="Carrito" class="w-6 md:w-7 h-auto" />
@@ -106,7 +103,7 @@
     </div>
   </header>
 
-  <div class="w-full px-5 md:px-6 h-15 md:hidden flex justify-center items-center mt-2 relative z-50">
+  <div class="w-full px-5 md:px-6 h-15 md:hidden flex justify-center items-center mt-2 relative z-40" :class="{ 'mt-20': categoriesOpen }">
     <div class="relative w-full max-w-xs">
       <input
         v-model="searchQuery"
@@ -152,13 +149,99 @@
   </div>
 </template>
 
+<script>
+import { Swiper, SwiperSlide } from 'swiper/vue';
+import { Autoplay } from 'swiper/modules';
+
+export default {
+  components: {
+    Swiper,
+    SwiperSlide,
+  },
+  data() {
+    return {
+      modules: [Autoplay],
+      categoriesOpen: false,
+      searchQuery: '',
+      isLoading: false,
+      searchResults: [],
+      categoriesResults: [],
+      productsResults: [],
+      cartItemCount: 0, // Asumiendo que esto viene de algún estado global
+    };
+  },
+  methods: {
+    toggleCategories() {
+      this.categoriesOpen = !this.categoriesOpen;
+    },
+    closeCategories() {
+      this.categoriesOpen = false;
+    },
+    filterResults() {
+      // Lógica para filtrar resultados (categorías y productos)
+      // Esto es un placeholder, ajusta según tu implementación
+      if (this.searchQuery.trim().length > 0) {
+        this.isLoading = true;
+        setTimeout(() => {
+          // Simulación de resultados
+          this.categoriesResults = this.store.categories.filter(cat => cat.name.toLowerCase().includes(this.searchQuery.toLowerCase()));
+          this.productsResults = []; // Agrega lógica para productos si aplica
+          this.searchResults = [...this.categoriesResults, ...this.productsResults];
+          this.isLoading = false;
+        }, 500);
+      } else {
+        this.searchResults = [];
+        this.categoriesResults = [];
+        this.productsResults = [];
+      }
+    },
+    performSearch() {
+      // Lógica para realizar la búsqueda
+      if (this.searchQuery.trim()) {
+        this.$router.push(`/buscar?q=${this.searchQuery}`);
+        this.searchResults = [];
+        this.searchQuery = '';
+      }
+    },
+    goToResult(item) {
+      // Lógica para navegar al resultado seleccionado
+      if (item.slug) {
+        this.$router.push(`/categoria/${item.slug}`);
+      }
+      this.searchResults = [];
+      this.searchQuery = '';
+      this.closeCategories();
+    },
+  },
+  computed: {
+    store() {
+      // Asumiendo que tienes un store con categorías
+      return {
+        categories: [
+          { id: 1, name: 'Electrónica', slug: 'electronica' },
+          { id: 2, name: 'Ropa', slug: 'ropa' },
+          // Más categorías aquí
+        ],
+      };
+    },
+  },
+};
+</script>
+
+<style scoped>
+/* Puedes agregar estilos adicionales aquí si es necesario */
+.categories-menu {
+  background-color: white;
+}
+</style>
+
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useCartStore } from '@/store/cartStore';
 import { useStore } from '@/store/store';
 import { useSearchStore } from '@/store/searchStore';
-import { useHead } from '@unhead/vue'; // Cambiado a @unhead/vue
+import { useHead } from '@unhead/vue';
 import { debounce } from 'lodash-es';
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import { Autoplay } from 'swiper/modules';
@@ -181,9 +264,8 @@ const searchResults = computed(() => searchStore.searchResults);
 const categoriesResults = computed(() => searchResults.value.filter(result => result.type === 'category'));
 const productsResults = computed(() => searchResults.value.filter(result => result.type === 'product'));
 
-// Configurar metadatos reactivos con Unhead
 useHead({
-  title: computed(() => document.title || 'Mi Tienda'), // Reactivo al título del documento
+  title: computed(() => document.title || 'Mi Tienda'),
   meta: [
     { name: 'description', content: 'Explora una amplia variedad de productos en Mi Tienda.' },
     { property: 'og:title', content: 'Mi Tienda' },
@@ -267,10 +349,29 @@ const clearCache = async () => {
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
+/* Estilo para el menú de categorías */
+.categories-menu {
+  background-color: #ffffff !important; /* Forzar fondo blanco */
+  opacity: 1 !important; /* Forzar opacidad completa */
+  z-index: 9999 !important; /* Asegurar que esté por encima de otros elementos */
 }
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
+
+/* Asegurar que los elementos internos también sean opacos */
+.categories-menu > div {
+  background-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* Selector más específico para el menú desplegable */
+div.categories-menu {
+  background-color: #ffffff !important;
+  opacity: 1 !important;
+  z-index: 9999 !important;
+}
+
+/* Selector para los elementos internos del menú */
+div.categories-menu > div {
+  background-color: #ffffff !important;
+  opacity: 1 !important;
 }
 </style>

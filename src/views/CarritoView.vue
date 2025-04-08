@@ -12,7 +12,12 @@
     <div v-else class="grid gap-6">
       <div v-for="item in cart" :key="item.id" class="flex items-center justify-between border-b py-4">
         <div class="flex items-center space-x-4">
-          <img :src="item.image" :alt="item.name" class="w-20 h-20 object-cover rounded-md">
+          <img
+            :src="getItemImage(item)"
+            :alt="item.name"
+            class="w-20 h-20 object-cover rounded-md"
+            @error="onImageError"
+          >
           <div>
             <h2 class="text-lg font-semibold">{{ item.name }}</h2>
             <p class="text-orange-500 font-bold">S/ {{ item.price }}</p>
@@ -39,20 +44,25 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useStore } from '@/store/store'; // No parece usarse, pero lo dejo por si lo necesitas más adelante
-import { useCartStore } from '@/store/cartStore'; // Importación añadida
+import { useCartStore } from '@/store/cartStore';
 import { useRouter } from 'vue-router';
 
 const cartStore = useCartStore();
 const router = useRouter();
 
-// 📦 Obtener productos en el carrito
 const cart = computed(() => cartStore.cart);
-
-// 📦 Calcular total del carrito
 const cartTotal = computed(() => cartStore.cartTotal);
 
-// 📦 Aumentar cantidad de un producto
+const getItemImage = (item) => {
+  // Maneja el formato de imágenes de WooCommerce (item.images es un array)
+  return item.images && item.images.length > 0 ? item.images[0].src : 'https://via.placeholder.com/80';
+};
+
+const onImageError = (event) => {
+  // Si la imagen falla al cargar, usa un placeholder
+  event.target.src = 'https://via.placeholder.com/80';
+};
+
 const increaseQuantity = (productId) => {
   const item = cart.value.find((item) => item.id === productId);
   if (item) {
@@ -61,7 +71,6 @@ const increaseQuantity = (productId) => {
   }
 };
 
-// 📦 Disminuir cantidad de un producto
 const decreaseQuantity = (productId) => {
   const item = cart.value.find((item) => item.id === productId);
   if (item && item.quantity > 1) {
@@ -72,21 +81,18 @@ const decreaseQuantity = (productId) => {
   }
 };
 
-// 📦 Eliminar producto del carrito
 const removeItem = (productId) => {
   cartStore.removeItem(productId);
 };
 
-// 📦 Proceder al checkout
 const checkout = () => {
-  alert("¡Compra realizada con éxito!");
+  alert('¡Compra realizada con éxito!');
   cartStore.clearCart();
   router.push('/');
 };
 </script>
 
 <style scoped>
-/* 🚀 Estilos del carrito */
 button {
   transition: all 0.2s;
 }

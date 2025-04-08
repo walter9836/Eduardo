@@ -1,10 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { createPinia } from 'pinia'; // Importa Pinia
-import { useStore } from '@/store/store';
+import { createPinia } from 'pinia';
+import { useStore } from '@/store/store'; // Store principal
+import { useCartStore } from '@/store/cartStore'; // Store del carrito
 
-// Crea una instancia de Pinia para usarla fuera de setup
+// Crea una instancia de Pinia
 const pinia = createPinia();
-const store = useStore(pinia); // Inicializa el store con Pinia
+const store = useStore(pinia); // Store principal
+const cartStore = useCartStore(pinia); // Store del carrito
 
 const router = createRouter({
   history: createWebHistory(),
@@ -12,7 +14,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'Home',
-      component: () => import(/* webpackChunkName: "home" */ '../views/HomePage.vue'),
+      component: () => import('../views/HomePage.vue'),
       meta: {
         title: 'Inicio - Mi Tienda | Carnaval de Ofertas',
         description: 'Descubre las mejores ofertas en Mi Tienda con el Carnaval de Ofertas.',
@@ -31,7 +33,7 @@ const router = createRouter({
     {
       path: '/categoria/:slug',
       name: 'CategoriaView',
-      component: () => import(/* webpackChunkName: "categoria" */ '../views/CategoriaView.vue'),
+      component: () => import('../views/CategoriaView.vue'),
       props: (route) => ({
         slug: route.params.slug,
         page: parseInt(route.query.page) || 1,
@@ -57,7 +59,7 @@ const router = createRouter({
     {
       path: '/producto/:slug',
       name: 'ProductoView',
-      component: () => import(/* webpackChunkName: "producto" */ '../views/ProductoView.vue'),
+      component: () => import('../views/ProductoView.vue'),
       meta: {},
       beforeEnter: async (to, from, next) => {
         const slug = to.params.slug;
@@ -76,7 +78,7 @@ const router = createRouter({
     {
       path: '/carrito',
       name: 'CarritoView',
-      component: () => import(/* webpackChunkName: "carrito" */ '../views/CarritoView.vue'),
+      component: () => import('../views/CarritoView.vue'),
       meta: {
         title: 'Carrito - Mi Tienda',
         description: 'Revisa tu carrito de compras en Mi Tienda.',
@@ -85,7 +87,7 @@ const router = createRouter({
     {
       path: '/politica-cookies',
       name: 'CookiePolicy',
-      component: () => import(/* webpackChunkName: "legal" */ '../views/CookiePolicy.vue'),
+      component: () => import('../views/CookiePolicy.vue'),
       meta: {
         title: 'Política de Cookies - Mi Tienda',
         description: 'Conoce nuestra política de cookies en Mi Tienda.',
@@ -94,7 +96,7 @@ const router = createRouter({
     {
       path: '/nosotros',
       name: 'AboutUs',
-      component: () => import(/* webpackChunkName: "about" */ '../components/AboutUs.vue'),
+      component: () => import('../components/AboutUs.vue'),
       meta: {
         title: 'Nosotros - Mi Tienda',
         description: 'Más información sobre Mi Tienda y nuestro equipo.',
@@ -103,7 +105,7 @@ const router = createRouter({
     {
       path: '/buscar',
       name: 'SearchView',
-      component: () => import(/* webpackChunkName: "search" */ '../views/SearchView.vue'),
+      component: () => import('../views/SearchView.vue'),
       props: (route) => ({
         query: route.query.q,
       }),
@@ -119,7 +121,7 @@ const router = createRouter({
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
-      component: () => import(/* webpackChunkName: "notfound" */ '../views/NotFound.vue'),
+      component: () => import('../views/NotFound.vue'),
       meta: {
         title: 'Página no encontrada - Mi Tienda',
         description: 'Esta página no existe en Mi Tienda.',
@@ -127,13 +129,11 @@ const router = createRouter({
     },
   ],
   scrollBehavior(to, from, savedPosition) {
-    return { top: 0 }; // Desplazamiento instantáneo al inicio
+    return { top: 0 };
   },
 });
 
-// Middleware global para metadatos (manteniendo tu lógica por ahora)
 router.beforeEach(async (to, from, next) => {
-  // Actualización específica para rutas de categoría
   if (to.name === 'CategoriaView') {
     const slug = to.params.slug;
     const category = await store.fetchCategoryBySlug(slug);
