@@ -1,5 +1,5 @@
 <template>
-  <div class="container mx-auto px-4 py-6" v-if="store.isContentReady">
+  <div class="container mx-auto px-4 py-6">
     <Breadcrumb :category="categoryData" />
     <div class="flex gap-6">
       <aside class="hidden md:block w-1/4">
@@ -15,29 +15,46 @@
       </aside>
       <div class="w-full md:w-3/4">
         <div class="flex justify-center items-center space-x-4 mb-6">
-          <span @click="prevPage" :class="['px-3 py-2 cursor-pointer', store.currentPage <= 1 ? 'text-gray-400 cursor-not-allowed' : 'text-black hover:text-orange-500 transition']"><</span>
+          <span
+            @click="prevPage"
+            :class="[
+              'px-3 py-2 cursor-pointer',
+              store.currentPage <= 1 ? 'text-gray-400 cursor-not-allowed' : 'text-black hover:text-orange-500 transition'
+            ]"
+          ><</span>
           <div class="flex space-x-2">
-            <button v-for="page in visiblePages" :key="page" @click="goToPage(page)" :class="['px-3 py-1 rounded-md transition', store.currentPage === page ? 'bg-orange-500 text-white' : 'bg-gray-200 hover:bg-gray-300']">
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              @click="goToPage(page)"
+              :class="[
+                'px-3 py-1 rounded-md transition',
+                store.currentPage === page ? 'bg-orange-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
+              ]"
+            >
               {{ page }}
             </button>
           </div>
-          <span @click="nextPage" :class="['px-3 py-2 cursor-pointer', store.currentPage >= store.totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-black hover:text-orange-500 transition']">></span>
+          <span
+            @click="nextPage"
+            :class="[
+              'px-3 py-2 cursor-pointer',
+              store.currentPage >= store.totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-black hover:text-orange-500 transition'
+            ]"
+          >></span>
         </div>
         <ProductGrid :products="filteredProducts" @add-to-cart="addToCart" @go-to-product="goToProduct" />
       </div>
     </div>
   </div>
-  <div v-else class="container mx-auto px-4 py-6">
-    <!-- Placeholder -->
-  </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from '@/store/store';
 import { useCartStore } from '@/store/cartStore';
-import { useHead } from '@unhead/vue'; // Cambiado a @unhead/vue
+import { useHead } from '@unhead/vue';
 import { defineAsyncComponent } from 'vue';
 import { saveToIndexedDB, getFromIndexedDB } from '@/utils/indexedDB';
 import Breadcrumb from '@/components/Breadcrumb.vue';
@@ -50,12 +67,14 @@ const router = useRouter();
 const store = useStore();
 const cartStore = useCartStore();
 
+// Variables reactivas
 const categoryTitle = ref('');
 const filteredProducts = ref([]);
 const localFilters = ref({ price: '', attributes: {} });
 const activeFilters = ref({ price: '', attributes: {} });
 const expandedAttributes = ref({});
 
+// Computeds
 const categorySlug = computed(() => route.params.slug);
 const categoryData = computed(() => store.categories.find(cat => cat.slug === categorySlug.value) || null);
 
@@ -107,7 +126,7 @@ const visiblePages = computed(() => {
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 });
 
-// Configurar metadatos reactivos con Unhead
+// Configurar metadatos con Unhead
 useHead({
   title: computed(() => categoryTitle.value || 'Categoría - Mi Tienda'),
   meta: [
@@ -123,50 +142,46 @@ useHead({
   ],
 });
 
+// Función para cargar datos
 const loadData = async (slug, page, forceRefresh = false) => {
-  try {
-    const cacheKey = `products_${slug}_page_${page}`;
-    const cachedData = await getFromIndexedDB(cacheKey, 'productsByCategory');
-    let category, yoastMeta;
+  const cacheKey = `products_${slug}_page_${page}`;
+  const cachedData = await getFromIndexedDB(cacheKey, 'productsByCategory');
+  let category, yoastMeta;
 
-    if (cachedData && cachedData.products && !forceRefresh) {
-      console.log(`⚡ Datos cargados desde IndexedDB para ${cacheKey}`, cachedData.products);
-      store.products = cachedData.products;
-      store.totalProducts = cachedData.total;
-      store.totalPages = cachedData.totalPages;
-      store.currentPage = page;
-      category = store.categories.find(cat => cat.slug === slug) || (await store.fetchCategoryBySlug(slug));
-      yoastMeta = store.getYoastMetaForCategory(slug);
-      categoryTitle.value = yoastMeta.yoast_head_json?.title || category.name || 'Categoría no encontrada';
-      filteredProducts.value = filteredProductsComputed.value;
-      store.isContentReady = true;
-      return;
-    }
-
-    category = await store.fetchCategoryBySlug(slug);
-    if (!category) {
-      router.push('/404');
-      return;
-    }
-    const result = await store.fetchProductsByCategory(slug, page, forceRefresh);
-    console.log(`Productos cargados desde API para página ${page}:`, result.products);
+  if (cachedData && cachedData.products && !forceRefresh) {
+    console.log(`⚡ Datos cargados desde IndexedDB para ${cacheKey}`, cachedData.products);
+    store.products = cachedData.products;
+    store.totalProducts = cachedData.total;
+    store.totalPages = cachedData.totalPages;
+    store.currentPage = page;
+    category = store.categories.find(cat => cat.slug === slug) || (await store.fetchCategoryBySlug(slug));
     yoastMeta = store.getYoastMetaForCategory(slug);
     categoryTitle.value = yoastMeta.yoast_head_json?.title || category.name || 'Categoría no encontrada';
     filteredProducts.value = filteredProductsComputed.value;
     store.isContentReady = true;
-
-    await saveToIndexedDB(cacheKey, {
-      products: result.products,
-      total: result.total,
-      totalPages: result.totalPages,
-      currentPage: page,
-    }, 'productsByCategory');
-  } catch (error) {
-    console.error('Error al cargar datos:', error);
-    router.push('/404');
+    return;
   }
+
+  category = await store.fetchCategoryBySlug(slug);
+  if (!category) {
+    throw new Error('Categoría no encontrada');
+  }
+  const result = await store.fetchProductsByCategory(slug, page, forceRefresh);
+  console.log(`Productos cargados desde API para página ${page}:`, result.products);
+  yoastMeta = store.getYoastMetaForCategory(slug);
+  categoryTitle.value = yoastMeta.yoast_head_json?.title || category.name || 'Categoría no encontrada';
+  filteredProducts.value = filteredProductsComputed.value;
+  store.isContentReady = true;
+
+  await saveToIndexedDB(cacheKey, {
+    products: result.products,
+    total: result.total,
+    totalPages: result.totalPages,
+    currentPage: page,
+  }, 'productsByCategory');
 };
 
+// Funciones de interacción
 const applyFiltersFromSidebar = () => {
   activeFilters.value = JSON.parse(JSON.stringify(localFilters.value));
   filteredProducts.value = filteredProductsComputed.value;
@@ -199,11 +214,12 @@ const goToPage = async page => {
   await loadData(categorySlug.value, page);
 };
 
-// Manejo de carga inicial
-onMounted(async () => {
-  const page = parseInt(route.query.page) || 1;
-  await loadData(categorySlug.value, page);
-});
+// Carga inicial en setup asíncrono
+const page = parseInt(route.query.page) || 1;
+await loadData(categorySlug.value, page);
 
-// Eliminar watch redundante, ya que useHead es reactivo
+// Redirigir a 404 si no se cargaron los datos
+if (!store.isContentReady) {
+  router.push('/404');
+}
 </script>

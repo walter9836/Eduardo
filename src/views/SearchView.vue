@@ -2,7 +2,7 @@
 <template>
   <div class="container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
     <!-- Sidebar de categorías a la izquierda -->
-    <aside class="w-full md:w-1/4 bg-white rounded-lg shadow-md p-4">
+    <aside class="w-full md:w-1/4 bg-white rounded-lg shadow-md p-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto">
       <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
         <svg class="w-5 h-5 mr-2 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" />
@@ -148,33 +148,3 @@ watch(
   }
 );
 </script>
-
-<style scoped>
-/* Estilos para el sidebar */
-aside {
-  position: sticky;
-  top: 1rem; /* Pegajoso en desktop para que no se pierda al hacer scroll */
-  max-height: calc(100vh - 2rem); /* Limitar altura al viewport */
-  overflow-y: auto; /* Scroll si hay muchas categorías */
-}
-
-/* Personalización adicional */
-aside::-webkit-scrollbar {
-  width: 6px;
-}
-aside::-webkit-scrollbar-thumb {
-  background-color: #d1d5db; /* Gris claro */
-  border-radius: 3px;
-}
-aside::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-@media (max-width: 768px) {
-  aside {
-    position: static; /* No pegajoso en móvil */
-    margin-bottom: 1.5rem;
-    max-height: none; /* Sin límite en móvil */
-  }
-}
-</style>

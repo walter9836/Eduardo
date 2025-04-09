@@ -1,7 +1,8 @@
+// src/utils/indexedDB.js
 import { openDB } from 'idb';
 
 const DB_NAME = "WooCommerceStore";
-const VERSION = 5; // Subimos a versión 5 para añadir productsByCategory
+const VERSION = 6; // Subimos a versión 6 para añadir popular_searches
 const CACHE_EXPIRATION = 24 * 60 * 60 * 1000; // 24 horas
 
 export const dbPromise = openDB(DB_NAME, VERSION, {
@@ -24,6 +25,10 @@ export const dbPromise = openDB(DB_NAME, VERSION, {
     if (oldVersion < 5) {
       // Añadimos el almacén usado por fetchProductsByCategory en store.js
       db.createObjectStore("productsByCategory", { keyPath: "cacheKey" });
+    }
+    if (oldVersion < 6) {
+      // Añadimos el almacén para datos populares
+      db.createObjectStore("popular_searches", { keyPath: "key" });
     }
   },
 });
@@ -212,6 +217,7 @@ export async function clearAllIndexedDB() {
       "cart_items",
       "search_results",
       "productsByCategory",
+      "popular_searches", // Añadimos el nuevo almacén
     ];
     const tx = db.transaction(storeNames, "readwrite");
     await Promise.all(storeNames.map(storeName => tx.objectStore(storeName).clear()));

@@ -1,30 +1,97 @@
+// src/store/searchStore.js
 import { defineStore } from 'pinia';
 import axios from 'axios';
 import { getFromIndexedDB, saveToIndexedDB, dbPromise } from '@/utils/indexedDB';
 import { useStore } from '@/store/store';
+import { ratio } from 'fuzzball'; // Cambia la importación a una importación nombrada
 
 const API_URL = import.meta.env.VITE_API_URL;
 const API_KEY = import.meta.env.VITE_WC_CONSUMER_KEY;
 const API_SECRET = import.meta.env.VITE_WC_CONSUMER_SECRET;
 
+const POPULAR_STORE = 'popular_searches';
+
+// Helper para determinar si una consulta es específica usando fuzzy matching
+const isSpecificQuery = (query, products) => {
+  const lowerQuery = query.toLowerCase();
+  return products.some(product => {
+    const similarity = ratio(lowerQuery, product.name?.toLowerCase()); // Usa ratio directamente
+    return similarity >= 80; // Considerar específica si la similitud es >= 80%
+  });
+};
+
 export const useSearchStore = defineStore('searchStore', {
   state: () => ({
     searchResults: [],
+    popularResults: [],
     loading: false,
     error: null,
     lastQuery: '',
+    isContentReady: false,
   }),
 
   actions: {
+    async initializePopularData() {
+      const mainStore = useStore();
+      if (mainStore.categories.length === 0) {
+        await mainStore.fetchCategoriesMinimal();
+      }
+
+      try {
+        const cachedPopular = await getFromIndexedDB('popular', POPULAR_STORE);
+        if (cachedPopular?.products?.length) {
+          this.popularResults = cachedPopular.products;
+          return;
+        }
+      } catch (error) {
+        console.warn('⚠️ No se encontraron datos populares en IndexedDB:', error);
+      }
+
+      try {
+        const response = await axios.get(`${API_URL}/products`, {
+          params: {
+            consumer_key: API_KEY,
+            consumer_secret: API_SECRET,
+            per_page: 10,
+            orderby: 'popularity',
+          },
+          timeout: 5000,
+        });
+
+        const popularProducts = response.data.map(product => ({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.images?.[0]?.src || '/placeholder.jpg',
+          slug: product.slug || `producto-${product.id}`,
+          description: product.description,
+          categories: product.categories?.map(cat => cat.slug) || [],
+          attributes: product.attributes?.map(attr => ({
+            name: attr.name,
+            options: attr.options || [],
+          })) || [],
+          type: 'product',
+        }));
+
+        await saveToIndexedDB('popular', { products: popularProducts }, POPULAR_STORE);
+        this.popularResults = popularProducts;
+      } catch (error) {
+        console.error('❌ Error al cargar datos populares:', error);
+        this.popularResults = [];
+      }
+    },
+
     async searchProducts(query, forceRefresh = false) {
       if (!query?.trim()) {
         this.searchResults = [];
         this.lastQuery = '';
+        this.isContentReady = true;
         console.log('🔍 Consulta vacía, limpiando resultados');
         return [];
       }
 
       this.loading = true;
+      this.isContentReady = false;
       this.lastQuery = query.trim();
       const cacheKey = `search_${query.toLowerCase()}`;
       const mainStore = useStore();
@@ -34,27 +101,44 @@ export const useSearchStore = defineStore('searchStore', {
       }
 
       if (!forceRefresh) {
-        const cached = await getFromIndexedDB(cacheKey, "search_results");
+        const cached = await getFromIndexedDB(cacheKey, 'search_results');
         if (cached?.products?.length) {
           this.searchResults = cached.products;
           this.loading = false;
+          this.isContentReady = true;
           console.log(`⚡ Resultados en caché para '${query}': ${cached.products.length} ítems`);
           return cached.products;
         }
       }
 
-      const localResults = await this.getLocalPredictions(query, mainStore);
-      this.searchResults = localResults;
-      console.log(`⚡ ${localResults.length} predicciones locales para '${query}'`);
-      if (localResults.length >= 5 && !forceRefresh) {
-        this.loading = false;
-        return localResults;
-      }
+      const [localResults, apiResults] = await Promise.all([
+        this.getLocalPredictions(query, mainStore),
+        this.fetchFromApi(query),
+      ]);
 
+      const combinedResults = [
+        ...localResults,
+        ...apiResults.filter(apiResult => !localResults.some(local => local.id === apiResult.id && local.type === apiResult.type)),
+      ];
+
+      await saveToIndexedDB(cacheKey, { cacheKey, products: combinedResults }, 'search_results');
+      this.searchResults = combinedResults;
+      this.loading = false;
+      this.isContentReady = true;
+      console.log(`✅ ${combinedResults.length} resultados combinados para '${query}'`);
+      return combinedResults;
+    },
+
+    async fetchFromApi(query) {
       try {
         const response = await axios.get(`${API_URL}/products`, {
-          params: { consumer_key: API_KEY, consumer_secret: API_SECRET, search: query, per_page: 20 },
-          timeout: 5000,
+          params: {
+            consumer_key: API_KEY,
+            consumer_secret: API_SECRET,
+            search: query,
+            per_page: 10,
+          },
+          timeout: 3000,
         });
 
         const data = response.data || [];
@@ -75,85 +159,72 @@ export const useSearchStore = defineStore('searchStore', {
           type: 'product',
         }));
 
-        // Categorías que coinciden directamente con la consulta
-        const matchingCategories = mainStore.categories
-          .filter(cat => cat.name?.toLowerCase().includes(query.toLowerCase()))
-          .map(cat => ({
-            id: cat.id,
-            name: cat.name,
-            slug: cat.slug,
-            type: 'category',
-          }));
+        const mainStore = useStore();
+        const isSpecific = isSpecificQuery(query, products);
 
-        // Categorías asociadas a los productos encontrados
-        const productCategorySlugs = new Set(products.flatMap(product => product.categories));
-        const associatedCategories = mainStore.categories
-          .filter(cat => productCategorySlugs.has(cat.slug))
-          .map(cat => ({
-            id: cat.id,
-            name: cat.name,
-            slug: cat.slug,
-            type: 'category',
-          }));
+        // Solo incluir categorías si la consulta es específica
+        let associatedCategories = [];
+        if (isSpecific) {
+          const productCategorySlugs = new Set(products.flatMap(product => product.categories));
+          associatedCategories = mainStore.categories
+            .filter(cat => productCategorySlugs.has(cat.slug))
+            .map(cat => ({
+              id: cat.id,
+              name: cat.name,
+              slug: cat.slug,
+              type: 'category',
+            }));
+        }
 
-        // Combinar resultados: productos, categorías coincidentes y categorías asociadas
-        const combinedResults = [
-          ...products,
-          ...matchingCategories,
-          ...associatedCategories.filter(cat => !matchingCategories.some(mc => mc.id === cat.id)), // Evitar duplicados
-        ].sort((a, b) => (a.type === 'product' ? -1 : 1));
-
-        await saveToIndexedDB(cacheKey, { cacheKey, products: combinedResults }, "search_results");
-        this.searchResults = combinedResults;
-        console.log(`✅ ${combinedResults.length} resultados para '${query}' desde API`);
-        return combinedResults;
+        return [...products, ...associatedCategories];
       } catch (error) {
-        console.error(`❌ Error al buscar '${query}':`, error);
+        console.error(`❌ Error al buscar '${query}' desde API:`, error);
         this.error = error.message;
-        this.searchResults = localResults;
-        return localResults;
-      } finally {
-        this.loading = false;
+        return [];
       }
     },
 
     async getLocalPredictions(query, mainStore) {
       const lowerQuery = query.toLowerCase();
       try {
+        if (query.length <= 3 && this.popularResults.length > 0) {
+          const filteredPopular = this.popularResults.filter(item =>
+            item.name?.toLowerCase().includes(lowerQuery)
+          );
+          if (filteredPopular.length > 0) {
+            console.log(`⚡ ${filteredPopular.length} resultados populares para '${query}'`);
+            return filteredPopular;
+          }
+        }
+
         const db = await dbPromise;
-        const tx = db.transaction("products", "readonly");
-        const store = tx.objectStore("products");
+        const tx = db.transaction('products', 'readonly');
+        const store = tx.objectStore('products');
         const allProducts = await store.getAll();
+
         const matchingProducts = allProducts
           .filter(product => product.name?.toLowerCase().includes(lowerQuery))
           .map(product => ({ ...product, type: 'product' }));
 
-        // Categorías que coinciden directamente con la consulta
-        const matchingCategories = mainStore.categories
-          .filter(cat => cat.name?.toLowerCase().includes(lowerQuery))
-          .map(cat => ({
-            id: cat.id,
-            name: cat.name,
-            slug: cat.slug,
-            type: 'category',
-          }));
-
-        // Categorías asociadas a los productos encontrados localmente
-        const productCategorySlugs = new Set(matchingProducts.flatMap(product => product.categories || []));
-        const associatedCategories = mainStore.categories
-          .filter(cat => productCategorySlugs.has(cat.slug))
-          .map(cat => ({
-            id: cat.id,
-            name: cat.name,
-            slug: cat.slug,
-            type: 'category',
-          }));
+        // Solo incluir categorías si la consulta es específica
+        let associatedCategories = [];
+        const isSpecific = isSpecificQuery(query, matchingProducts);
+        if (isSpecific) {
+          const productCategorySlugs = new Set(matchingProducts.flatMap(product => product.categories || []));
+          associatedCategories = mainStore.categories
+            .filter(cat => productCategorySlugs.has(cat.slug))
+            .map(cat => ({
+              id: cat.id,
+              name: cat.name,
+              slug: cat.slug,
+              type: 'category',
+            }));
+        }
 
         return [
           ...matchingProducts,
-          ...matchingCategories,
-          ...associatedCategories.filter(cat => !matchingCategories.some(mc => mc.id === cat.id)),
-        ];
+          ...associatedCategories,
+        ].slice(0, 5);
       } catch (error) {
         console.error('❌ Error en predicciones locales:', error);
         return [];
@@ -171,7 +242,7 @@ export const useSearchStore = defineStore('searchStore', {
           title: data.title || `Resultados para "${query}"`,
           description: data.description || `Encuentra productos relacionados con "${query}" en nuestra tienda.`,
           og_image: data.og_image || '',
-          canonical: data.canonical || `${window.location.origin}/search?q=${encodeURIComponent(query)}`,
+          canonical: data.canonical || `${window.location.origin}/buscar?q=${encodeURIComponent(query)}`,
         };
       } catch (error) {
         console.error(`❌ Error al obtener metadatos Yoast para '${query}':`, error);
@@ -179,7 +250,7 @@ export const useSearchStore = defineStore('searchStore', {
           title: `Resultados para "${query}"`,
           description: `Encuentra productos relacionados con "${query}" en nuestra tienda.`,
           og_image: '',
-          canonical: `${window.location.origin}/search?q=${encodeURIComponent(query)}`,
+          canonical: `${window.location.origin}/buscar?q=${encodeURIComponent(query)}`,
         };
       }
     },
@@ -189,6 +260,7 @@ export const useSearchStore = defineStore('searchStore', {
       this.loading = false;
       this.error = null;
       this.lastQuery = '';
+      this.isContentReady = true;
       console.log('🧹 Estado de búsqueda limpiado');
     },
   },

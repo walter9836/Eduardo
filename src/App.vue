@@ -2,27 +2,32 @@
   <div class="app">
     <AppHeader />
     
-    <!-- Contenido principal con skeleton mientras carga -->
+    <!-- Contenido principal -->
     <main class="content-wrapper">
-      <div v-if="isLoading" class="skeleton-wrapper animate-pulse">
-        <div class="h-64 bg-gray-200 rounded-lg mx-4"></div>
-      </div>
-      <router-view v-else v-slot="{ Component }">
-        <transition name="page" mode="out-in">
-          <keep-alive include="CategoriaView,HomePage">
-            <component 
-              :is="Component"
-              :key="$route.fullPath"
-              class="page-content"
-              @hook:mounted="onContentMounted"
-            />
-          </keep-alive>
-        </transition>
-      </router-view>
+      <Suspense>
+        <template #default>
+          <router-view v-slot="{ Component }">
+            <transition name="page" mode="out-in">
+              <keep-alive include="CategoriaView,HomePage">
+                <component 
+                  :is="Component"
+                  :key="$route.fullPath"
+                  class="page-content"
+                  @hook:mounted="onContentMounted"
+                />
+              </keep-alive>
+            </transition>
+          </router-view>
+        </template>
+        <template #fallback>
+          <div class="skeleton-wrapper animate-pulse">
+            <div class="h-64 bg-gray-200 rounded-lg mx-4"></div>
+          </div>
+        </template>
+      </Suspense>
     </main>
 
     <Footer />
-
     <CookieConsent v-if="!error" />
   </div>
 </template>
@@ -57,10 +62,13 @@ onMounted(async () => {
 
 watch(
   () => route.fullPath,
-  async () => {
+  async (newPath) => {
     isLoading.value = true;
     try {
-      // Aquí podrías añadir lógica específica de la ruta si es necesario
+      // Si es una categoría, no cargamos aquí; dejamos que CategoriaView lo maneje
+      if (!newPath.startsWith('/categoria/')) {
+        await store.preloadInitialData(); // Precarga para otras rutas si aplica
+      }
     } catch (err) {
       error.value = true;
     } finally {
